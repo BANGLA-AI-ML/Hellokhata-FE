@@ -9,6 +9,7 @@ import {
   CircleDollarSign,
   Receipt,
   ShieldCheck,
+  Sparkles,
   Tag,
   UploadCloud,
 } from "lucide-react";
@@ -36,14 +37,14 @@ export default function AddProductPage() {
   const [unitId, setUnitId] = useState("");
   const [description, setDescription] = useState("");
 
-  const [costPrice, setCostPrice] = useState<number | "">(0);
-  const [sellingPrice, setSellingPrice] = useState<number | "">(0);
-  const [wholesalePrice, setWholesalePrice] = useState<number | "">(0);
-  const [vipPrice, setVipPrice] = useState<number | "">(0);
-  const [minimumPrice, setMinimumPrice] = useState<number | "">(0);
+  const [costPrice, setCostPrice] = useState<number | "">("");
+  const [sellingPrice, setSellingPrice] = useState<number | "">("");
+  const [wholesalePrice, setWholesalePrice] = useState<number | "">("");
+  const [vipPrice, setVipPrice] = useState<number | "">("");
+  const [minimumPrice, setMinimumPrice] = useState<number | "">("");
 
-  const [currentStock, setCurrentStock] = useState<number | "">(0);
-  const [minStock, setMinStock] = useState<number | "">(10);
+  const [currentStock, setCurrentStock] = useState<number | "">("");
+  const [minStock, setMinStock] = useState<number | "">("");
   const [vatRate, setVatRate] = useState<number | "">(5);
   const [lowStockAlert, setLowStockAlert] = useState(false);
 
@@ -51,9 +52,18 @@ export default function AddProductPage() {
   const [trackBatch, setTrackBatch] = useState(false);
   const [status, setStatus] = useState("ACTIVE");
   const [warranty, setWarranty] = useState<"YES" | "NO">("NO");
-  const [warrantyDays, setWarrantyDays] = useState<number | "">("");
+  const [warrantyValue, setWarrantyValue] = useState<number | "">("");
+  const [warrantyUnit, setWarrantyUnit] = useState<"DAYS" | "MONTHS" | "YEARS">("DAYS");
   const [productType, setProductType] = useState("PRODUCT");
   const [imageUrl, setImageUrl] = useState("");
+
+  const calculateWarrantyDays = (val: number | "", unit: "DAYS" | "MONTHS" | "YEARS"): number => {
+    if (val === "" || isNaN(Number(val))) return 0;
+    const num = Number(val);
+    if (unit === "YEARS") return num * 365;
+    if (unit === "MONTHS") return num * 30;
+    return num;
+  };
 
   const [manufactureDate, setManufactureDate] = useState<string>("");
   const [expiryDate, setExpiryDate] = useState<string>("");
@@ -129,13 +139,6 @@ export default function AddProductPage() {
   };
  
 
-  // Show date fields when batch tracking, expiry tracking is on and current stock has value
-  const showDateFields =
-    trackBatch &&
-    trackExpiry &&
-    typeof currentStock === "number" &&
-    currentStock > 0;
-
   const handleTrackBatchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const isChecked = e.target.checked;
     setTrackBatch(isChecked);
@@ -168,14 +171,7 @@ export default function AddProductPage() {
       newErrors.sellingPrice = "Retail Selling Price is required";
     }
 
-    if (showDateFields) {
-      // if (!manufactureDate) {
-      //   newErrors.manufactureDate = "Manufacture Date is required";
-      // }
-      // if (!expiryDate) {
-      //   newErrors.expiryDate = "Expiry Date is required";
-      // }
-    }
+
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -208,11 +204,14 @@ export default function AddProductPage() {
       trackExpiry,
       trackBatch,
       status,
-      warrantyDays: warranty === "YES" ? (warrantyDays === "" ? 0 : Number(warrantyDays)) : 0,
+      warrantyDays:
+        warranty === "YES"
+          ? calculateWarrantyDays(warrantyValue, warrantyUnit)
+          : 0,
       productType,
       imageUrl,
-      expiryDate: showDateFields ? expiryDate : null,
-      manufactureDate: showDateFields ? manufactureDate : null,
+      expiryDate: trackExpiry && expiryDate ? expiryDate : null,
+      manufactureDate: trackExpiry && manufactureDate ? manufactureDate : null,
     };
 
     saveProduct(formData,{
@@ -516,81 +515,180 @@ export default function AddProductPage() {
                         onChange={(e) =>
                           setWarranty(e.target.value as "YES" | "NO")
                         }
-                        className="w-full bg-background/50 border border-input rounded-lg px-2.5 h-10 text-xs text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 transition-all"
+                        className={cn(
+                          "bg-background/50 border border-input rounded-lg px-2.5 h-10 text-xs text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 transition-all",
+                          warranty === "YES" ? "w-24 shrink-0" : "w-full"
+                        )}
                       >
                         <option value="NO">No</option>
                         <option value="YES">Yes</option>
                       </select>
 
                       {warranty === "YES" && (
-                        <div className="relative w-28 shrink-0">
+                        <div className="flex items-center gap-1.5 flex-1 min-w-0">
                           <input
                             type="number"
                             min="0"
-                            value={warrantyDays}
+                            value={warrantyValue}
                             onChange={(e) =>
-                              setWarrantyDays(
+                              setWarrantyValue(
                                 e.target.value === ""
                                   ? ""
-                                  : Number(e.target.value)
+                                  : Math.max(0, Number(e.target.value))
                               )
                             }
-                            placeholder="365"
-                            className="w-full bg-background/50 border border-input rounded-lg pl-3 pr-9 h-10 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 transition-all font-mono"
+                            placeholder="1"
+                            className="w-full bg-background/50 border border-input rounded-lg px-2.5 h-10 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 transition-all font-mono min-w-0"
                           />
-                          <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground font-medium pointer-events-none">
-                            Days
-                          </span>
+                          <select
+                            value={warrantyUnit}
+                            onChange={(e) =>
+                              setWarrantyUnit(
+                                e.target.value as "DAYS" | "MONTHS" | "YEARS"
+                              )
+                            }
+                            className="bg-background/50 border border-input rounded-lg px-2.5 h-10 text-xs text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 transition-all shrink-0 cursor-pointer"
+                          >
+                            <option value="DAYS">Days</option>
+                            <option value="MONTHS">Months</option>
+                            <option value="YEARS">Years</option>
+                          </select>
                         </div>
                       )}
                     </div>
                   </div>
                 </div>
 
-                {/* Tightened Toggle Controls */}
-                <div className="pt-2.5 grid grid-cols-1 sm:grid-cols-2 gap-3 border-t border-border">
-                  <label className="flex items-center gap-2.5 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={trackBatch}
-                      onChange={handleTrackBatchChange}
-                      className="sr-only peer"
-                    />
-                    <div className="w-8 h-4 bg-muted border border-input peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-foreground after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-foreground after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-primary relative"></div>
-                    <div>
-                      <span className="text-xs text-foreground font-medium block">
-                        Batch Tracking
-                      </span>
-                      <span className="text-[10px] text-muted-foreground block leading-tight">
-                        Assign lot numbers on receipt
-                      </span>
+                {/* Batch & Expiry Tracking + Dates Row */}
+                <div className="">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 items-end py-3">
+                    {/* Batch Tracking */}
+                    <div className="flex items-center h-10">
+                      <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={trackBatch}
+                          onChange={handleTrackBatchChange}
+                          className="sr-only peer"
+                        />
+                        <div className="w-8 h-4 bg-muted border border-input peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-foreground after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-foreground after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-primary relative"></div>
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs text-foreground font-medium block">
+                              Batch Tracking
+                            </span>
+                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[9px] font-semibold tracking-wide uppercase bg-amber-500/10 text-amber-500 border border-amber-500/20 rounded-md">
+                              <Sparkles className="w-2.5 h-2.5" />
+                              PRO
+                            </span>
+                          </div>
+                          <span className="text-[10px] text-muted-foreground block leading-tight">
+                            Assign lot numbers on receipt
+                          </span>
+                        </div>
+                      </label>
                     </div>
-                  </label>
 
-                  <label
-                    className={`flex items-center gap-3 select-none ${
-                      !trackBatch
-                        ? "cursor-not-allowed opacity-50"
-                        : "cursor-pointer"
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={trackExpiry}
-                      onChange={(e) => setTrackExpiry(e.target.checked)}
-                      disabled={!trackBatch}
-                      className="sr-only peer"
-                    />
-                    <div className="w-8 h-4 bg-muted border border-input peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-foreground after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-foreground after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-primary relative peer-disabled:opacity-50"></div>
-                    <div>
-                      <span className="text-xs text-foreground font-medium block">
-                        Expiry Tracking
-                      </span>
-                      <span className="text-[10px] text-muted-foreground block leading-tight">
-                        Monitor expiration dates
-                      </span>
+                    {/* Expiry Tracking */}
+                    <div className="flex items-center h-10">
+                      <label
+                        className={`flex items-center gap-2.5 select-none ${
+                          !trackBatch
+                            ? "cursor-not-allowed opacity-50"
+                            : "cursor-pointer"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={trackExpiry}
+                          onChange={(e) => setTrackExpiry(e.target.checked)}
+                          disabled={!trackBatch}
+                          className="sr-only peer"
+                        />
+                        <div className="w-8 h-4 bg-muted border border-input peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-foreground after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-foreground after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-primary relative peer-disabled:opacity-50"></div>
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs text-foreground font-medium block">
+                              Expiry Tracking
+                            </span>
+                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[9px] font-semibold tracking-wide uppercase bg-amber-500/10 text-amber-500 border border-amber-500/20 rounded-md">
+                              <Sparkles className="w-2.5 h-2.5" />
+                              PRO
+                            </span>
+                          </div>
+                          <span className="text-[10px] text-muted-foreground block leading-tight">
+                            Monitor expiration dates
+                          </span>
+                        </div>
+                      </label>
                     </div>
-                  </label>
+
+                    {/* Manufacture Date */}
+                    {trackExpiry ? (
+                      <div className="animate-in fade-in duration-200">
+                        <label className="block text-xs font-medium text-foreground mb-1">
+                          Manufacture Date
+                        </label>
+                        <input
+                          type="date"
+                          value={manufactureDate}
+                          onChange={(e) => {
+                            setManufactureDate(e.target.value);
+                            if (errors.manufactureDate)
+                              setErrors((prev) => ({
+                                ...prev,
+                                manufactureDate: "",
+                              }));
+                          }}
+                          className={`w-full bg-background/50 border ${
+                            errors.manufactureDate
+                              ? "border-destructive"
+                              : "border-input"
+                          } rounded-lg px-3 h-10 text-xs text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 transition-all font-mono`}
+                        />
+                        {errors.manufactureDate && (
+                          <p className="text-destructive text-[11px] mt-1">
+                            {errors.manufactureDate}
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="hidden lg:block" />
+                    )}
+
+                    {/* Expiry Date */}
+                    {trackExpiry ? (
+                      <div className="animate-in fade-in duration-200">
+                        <label className="block text-xs font-medium text-foreground mb-1">
+                          Expiry Date
+                        </label>
+                        <input
+                          type="date"
+                          value={expiryDate}
+                          onChange={(e) => {
+                            setExpiryDate(e.target.value);
+                            if (errors.expiryDate)
+                              setErrors((prev) => ({
+                                ...prev,
+                                expiryDate: "",
+                              }));
+                          }}
+                          className={`w-full bg-background/50 border ${
+                            errors.expiryDate
+                              ? "border-destructive"
+                              : "border-input"
+                          } rounded-lg px-3 h-10 text-xs text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 transition-all font-mono`}
+                        />
+                        {errors.expiryDate && (
+                          <p className="text-destructive text-[11px] mt-1">
+                            {errors.expiryDate}
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="hidden lg:block" />
+                    )}
+                  </div>
                 </div>
               </div>
             </section>
@@ -857,7 +955,8 @@ export default function AddProductPage() {
                           e.target.value === "" ? "" : Number(e.target.value),
                         )
                       }
-                      className="w-full bg-background/50 border border-input rounded-lg px-3 h-10 text-xs text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 transition-all font-mono"
+                      placeholder="0"
+                      className="w-full bg-background/50 border border-input rounded-lg px-3 h-10 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 transition-all font-mono"
                     />
                   </div>
                   <div>
@@ -872,7 +971,8 @@ export default function AddProductPage() {
                           e.target.value === "" ? "" : Number(e.target.value),
                         )
                       }
-                      className="w-full bg-background/50 border border-input rounded-lg px-3 h-10 text-xs text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 transition-all font-mono"
+                      placeholder="0"
+                      className="w-full bg-background/50 border border-input rounded-lg px-3 h-10 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 transition-all font-mono"
                     />
                   </div>
                   <div>
@@ -916,68 +1016,6 @@ export default function AddProductPage() {
                     </div>
                   </div>
                 </div>
-
-                {/* Manufacture Date and Expiry Date - appear when Opening Stock > 0 and tracking enabled */}
-                {showDateFields && (
-                  <div className="md:col-span-3 grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-3 border-t border-border">
-                    <div>
-                      <label className="block text-xs font-medium text-foreground mb-1">
-                        Manufacture Date <span className="text-primary">*</span>
-                      </label>
-                      <input
-                        type="date"
-                        required
-                        value={manufactureDate}
-                        onChange={(e) => {
-                          setManufactureDate(e.target.value);
-                          if (errors.manufactureDate)
-                            setErrors((prev) => ({
-                              ...prev,
-                              manufactureDate: "",
-                            }));
-                        }}
-                        className={`w-full bg-background/50 border ${
-                          errors.manufactureDate
-                            ? "border-destructive"
-                            : "border-input"
-                        } rounded-lg px-3 h-10 text-xs text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 transition-all font-mono`}
-                      />
-                      {errors.manufactureDate && (
-                        <p className="text-destructive text-[11px] mt-1">
-                          {errors.manufactureDate}
-                        </p>
-                      )}
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-foreground mb-1">
-                        Expiry Date <span className="text-primary">*</span>
-                      </label>
-                      <input
-                        type="date"
-                        required
-                        value={expiryDate}
-                        onChange={(e) => {
-                          setExpiryDate(e.target.value);
-                          if (errors.expiryDate)
-                            setErrors((prev) => ({
-                              ...prev,
-                              expiryDate: "",
-                            }));
-                        }}
-                        className={`w-full bg-background/50 border ${
-                          errors.expiryDate
-                            ? "border-destructive"
-                            : "border-input"
-                        } rounded-lg px-3 h-10 text-xs text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 transition-all font-mono`}
-                      />
-                      {errors.expiryDate && (
-                        <p className="text-destructive text-[11px] mt-1">
-                          {errors.expiryDate}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                )}
               </div>
             </section>
 
