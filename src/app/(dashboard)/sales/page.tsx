@@ -3,7 +3,7 @@
 
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState} from "react";
 import {
   Card,
   Button,
@@ -11,6 +11,7 @@ import {
   EmptyState,
 } from "@/components/ui/premium";
 import { BackButton } from "@/components/common";
+import { PaginationHelper } from "@/components/shared/PaginationHelper";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -24,7 +25,7 @@ import {
   Plus,
   Search,
   Calendar,
-  Eye,
+  Eye,  
   TrendingUp,
   FileText,
   BarChart3,
@@ -32,47 +33,32 @@ import {
 } from "lucide-react";
 import { useCurrency, useDateFormat } from "@/hooks/useAppTranslation";
 import { useAppTranslation } from "@/hooks/useAppTranslation";
-import type { Sale } from "@/types";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useGetSales, useGetSalesSummary } from "@/hooks/api/useSales";
-import { toast } from "sonner";
 
-interface ReturnForm {
-  reason: string;
-  notes: string;
-  refundMethod: "cash" | "bkash" | "credit_note" | "bank";
-}
 export default function SalesPage() {
   const { t, isBangla } = useAppTranslation();
   const { formatCurrency } = useCurrency();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [returnForm, setReturnForm] = useState<ReturnForm>({
-    reason: "",
-    notes: "",
-    refundMethod: "cash",
-  });
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
 
-  const { data: salesData, isLoading } = useGetSales({ search: searchTerm });
+
+  const { data: salesData, isLoading } = useGetSales({ search: searchTerm,limit:pageSize,page:currentPage });
   const { data: salesSummary } = useGetSalesSummary();
+ 
+  const todaysSales = salesSummary?.today?.total ?? 0;
+  const thisMonthsSales = salesSummary?.thisMonth?.total ?? 0;
+  const invoices = salesSummary?.allTime?.count ?? 0;
+  const allTimeSales = salesSummary?.allTime?.total ?? 0;
+
+  
   const sales = salesData?.data || [];
-
   const { formatDateTime } = useDateFormat();
-
-  const filteredSales = useMemo(() => {
-    if (statusFilter === "all") return sales;
-    return sales.filter((s: Sale) => s.status === statusFilter);
-  }, [sales, statusFilter]);
-
   const router = useRouter();
-  // Calculate stats
-  const todaySales = sales.reduce((sum, s) => sum + s.total, 0);
-  const monthSales = todaySales * 30;
-  const invoiceCount = sales.length;
-  const avgSale = invoiceCount > 0 ? todaySales / invoiceCount : 0;
-
   return (
     <>
       <div className="space-y-6">
@@ -103,7 +89,7 @@ export default function SalesPage() {
           <KPICard
             title="Today's Sales"
             titleBn="আজকের বিক্রি"
-            value={todaySales}
+            value={todaysSales}
             prefix="৳"
             trend={{ value: 12.5, isPositive: true }}
             icon={<TrendingUp className="h-5 w-5" />}
@@ -113,26 +99,26 @@ export default function SalesPage() {
           <KPICard
             title="This Month"
             titleBn="এই মাসে"
-            value={monthSales}
+            value={thisMonthsSales}
             prefix="৳"
             trend={{ value: 8.2, isPositive: true }}
             icon={<BarChart3 className="h-5 w-5" />}
             iconColor="indigo"
-            isBangla={isBangla}
+            isBangla={isBangla} 
           />
+            <KPICard
+              title="Invoices"
+              titleBn="ইনভয়েস"
+              value={invoices}
+              trend={{ value: 5, isPositive: true }}
+              icon={<FileText className="h-5 w-5" />}
+              iconColor="warning"
+              isBangla={isBangla}
+            /> 
           <KPICard
-            title="Invoices"
-            titleBn="ইনভয়েস"
-            value={invoiceCount}
-            trend={{ value: 5, isPositive: true }}
-            icon={<FileText className="h-5 w-5" />}
-            iconColor="warning"
-            isBangla={isBangla}
-          />
-          <KPICard
-            title="Avg. Sale"
-            titleBn="গড় বিক্রি"
-            value={Math.round(avgSale)}
+            title="Total Sales"
+            titleBn="সর্বমোট বিক্রি"
+            value={allTimeSales}
             prefix="৳"
             icon={<ShoppingCart className="h-5 w-5" />}
             iconColor="emerald"
@@ -189,7 +175,7 @@ export default function SalesPage() {
               {t("sales.saleHistory")}
             </h2>
             <span className="text-xs font-medium text-[#718296]">
-              {filteredSales.length} {isBangla ? "টি বিক্রি" : "sales total"}
+              {salesData?.meta?.total} {isBangla ? "টি বিক্রি" : "sales total"}
             </span>
           </div>
 
@@ -198,7 +184,7 @@ export default function SalesPage() {
               <div className="flex items-center justify-center h-64">
                 <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
               </div>
-            ) : filteredSales.length === 0 ? (
+            ) : sales?.length === 0 ? (
               <EmptyState
                 icon={<ShoppingCart className="h-8 w-8" />}
                 title={isBangla ? "কোনো বিক্রি নেই" : "No sales found"}
@@ -257,7 +243,7 @@ export default function SalesPage() {
                   </thead>
 
                   <tbody className="divide-y divide-[#1b2231] bg-[#131823]">
-                    {filteredSales.map((sale, index) => {
+                    {sales.map((sale, index) => {
                       const statusConfig = {
                         completed: {
                           label: isBangla ? "সম্পন্ন" : "Completed",
@@ -280,9 +266,9 @@ export default function SalesPage() {
                             "text-indigo-400 bg-indigo-500/10 border-indigo-500/20",
                         },
                       };
-                      const status =
-                        statusConfig[sale.status] || statusConfig.completed;
-                      const slNumber = String(index + 1).padStart(2, "0");
+                      const slNumber = String(
+                        (currentPage - 1) * pageSize + index + 1,
+                      ).padStart(2, "0");
 
                       return (
                         <tr
@@ -320,7 +306,7 @@ export default function SalesPage() {
                             <span
                               className={
                                 sale.dueAmount > 0
-                                  ? "text-rose-400"
+                                   ? "text-rose-400"
                                   : "text-[#718296]"
                               }
                             >
@@ -370,6 +356,18 @@ export default function SalesPage() {
               </div>
             )}
           </div>
+
+          {/* Pagination Bar */}
+          {salesData?.meta?. totalPages> 1 && (
+            <div className="px-6 pb-4">
+              <PaginationHelper
+                currentPage={currentPage}
+                totalPages={salesData?.meta?.totalPages}
+                onPageChange={setCurrentPage}
+                isBangla={isBangla}
+              />
+            </div>
+          )}
         </div>
       </div>
     </>
