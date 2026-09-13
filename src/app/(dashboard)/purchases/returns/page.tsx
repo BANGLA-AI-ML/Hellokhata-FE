@@ -26,7 +26,6 @@ import {
 import {
   Plus,
   Search,
-  Calendar,
   Eye,
   Printer,
   RotateCcw,
@@ -199,12 +198,6 @@ export default function PurchaseReturnsPage() {
               </SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" className="gap-2 shrink-0">
-            <Calendar className="h-4 w-4" />
-            <span className="whitespace-nowrap">
-              {isBangla ? "রিটার্ন তারিখ" : "Return Date"}
-            </span>
-          </Button>
         </div>
       </Card>
 

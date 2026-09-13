@@ -76,7 +76,6 @@ interface PaymentRow {
   accountId: string;
   reference: string;
   transactionId: string;
-  receivedBy?: string;
   amount: number;
   date: Date;
 }
@@ -119,13 +118,11 @@ function NewSaleContent() {
   const { mutate, isPending } = useCreateSales();
 
   // API Data
-  const [partySearchQuery, setPartySearchQuery] = useState("");
   const [phoneSearchQuery, setPhoneSearchQuery] = useState("");
   const [debouncedPartySearchQuery, setDebouncedPartySearchQuery] =
     useState("");
 
   const [showPartySuggestions, setShowPartySuggestions] = useState(false);
-  const [showPartyNameSuggestions, setShowPartyNameSuggestions] = useState(false);
   const [productSearchQuery, setProductSearchQuery] = useState("");
   const [showProductSuggestions, setShowProductSuggestions] = useState(false);
   const [invoiceDate, setInvoiceDate] = useState<Date>(new Date());
@@ -134,13 +131,13 @@ function NewSaleContent() {
   const [selectedParty, setSelectedParty] = useState<any>(null);
   const [selectedPartyId, setSelectedPartyId] = useState<string>(partyIdParam);
 
-  // Debounce party search query
+  // Debounce phone search query
   useEffect(() => {
     const timer = setTimeout(() => {
-      setDebouncedPartySearchQuery(partySearchQuery || phoneSearchQuery);
+      setDebouncedPartySearchQuery(phoneSearchQuery);
     }, 300);
     return () => clearTimeout(timer);
-  }, [partySearchQuery, phoneSearchQuery]);
+  }, [phoneSearchQuery]);
 
 
 
@@ -153,11 +150,7 @@ function NewSaleContent() {
 
 
 
-  // New Fields (Tax, VAT, Additional Charge)
-  const [taxConfig, setTaxConfig] = useState<{ type: "flat" | "percent"; value: number }>({
-    type: "flat",
-    value: 0,
-  });
+  // New Fields (VAT, Additional Charge)
   const [vatConfig, setVatConfig] = useState<{ type: "flat" | "percent"; value: number }>({
     type: "flat",
     value: 0,
@@ -165,13 +158,9 @@ function NewSaleContent() {
   const [additionalCharge, setAdditionalCharge] = useState<string>("0");
 
   // Modal Controls
-  const [isEditTaxOpen, setIsEditTaxOpen] = useState(false);
   const [isEditVatOpen, setIsEditVatOpen] = useState(false);
 
   // Modal temporary values
-  const [tempTaxType, setTempTaxType] = useState<"flat" | "percent">("flat");
-  const [tempTaxValue, setTempTaxValue] = useState<string>("0");
-
   const [tempVatType, setTempVatType] = useState<"flat" | "percent">("flat");
   const [tempVatValue, setTempVatValue] = useState<string>("0");
 
@@ -187,7 +176,7 @@ function NewSaleContent() {
     { enabled: !!selectedProductForBatch?.id }
   );
 const itemsBatches = batchesData?.batches;
-  const { data: partiesData = [] } = useParties({search:debouncedPartySearchQuery, page: 1, limit: 100});
+  const { data: partiesData = [] } = useParties({search:debouncedPartySearchQuery,includeWalkIn:true, page: 1, limit: 100});
   const { data: paymentMethods = [] } = useGetPaymentMethods();
 
   // Fetch active offers for auto-detection
@@ -230,7 +219,6 @@ const itemsBatches = batchesData?.batches;
       accountId: "",
       reference: "",
       transactionId: "",
-      receivedBy: "",
       amount: 0,
       date: new Date(),
     },
@@ -243,10 +231,8 @@ const itemsBatches = batchesData?.batches;
   const handleSelectParty = (party: any) => {
     setSelectedParty(party);
     setSelectedPartyId(party.id);
-    setPartySearchQuery(party.name || "");
     setPhoneSearchQuery(party.phone || "");
     setShowPartySuggestions(false);
-    setShowPartyNameSuggestions(false);
   };
 
   // Handle Customer Phone change with auto-selection
@@ -259,7 +245,6 @@ const itemsBatches = batchesData?.batches;
         setSelectedParty(null);
         setSelectedPartyId("");
       }
-      setPartySearchQuery("");
       return;
     }
 
@@ -273,22 +258,11 @@ const itemsBatches = batchesData?.batches;
     if (matched) {
       setSelectedParty(matched);
       setSelectedPartyId(matched.id);
-      setPartySearchQuery(matched.name || "");
     } else {
       if (selectedParty) {
         setSelectedParty(null);
         setSelectedPartyId("");
       }
-      setPartySearchQuery(defaultCustomerName);
-    }
-  };
-
-  // Handle Customer Name change
-  const handlePartyNameChange = (inputVal: string) => {
-    setPartySearchQuery(inputVal);
-    if (selectedParty) {
-      setSelectedParty(null);
-      setSelectedPartyId("");
     }
   };
 
@@ -309,21 +283,9 @@ const itemsBatches = batchesData?.batches;
     return Math.max(0, rawSubtotal - totalDiscount);
   }, [rawSubtotal, totalDiscount]);
 
-  const totalItemTax = useMemo(() => {
+  const totalTax = useMemo(() => {
     return selectedItems.reduce((sum, item) => sum + (item.taxAmount || 0), 0);
   }, [selectedItems]);
-
-  const customTaxVal = useMemo(() => {
-    if (taxConfig.type === "flat") {
-      return taxConfig.value;
-    } else {
-      return parseFloat((subtotalAfterDiscount * (taxConfig.value / 100)).toFixed(2)) || 0;
-    }
-  }, [taxConfig, subtotalAfterDiscount]);
-
-  const totalTax = useMemo(() => {
-    return totalItemTax + customTaxVal;
-  }, [totalItemTax, customTaxVal]);
 
   const vatVal = useMemo(() => {
     if (vatConfig.type === "flat") {
@@ -381,7 +343,6 @@ const itemsBatches = batchesData?.batches;
           accountId: "",
           reference: "",
           transactionId: "",
-          receivedBy: "",
           amount: Math.min(totalPaid || grandTotal, grandTotal),
           date: new Date(),
         },
@@ -396,7 +357,6 @@ const itemsBatches = batchesData?.batches;
           accountId: "",
           reference: "",
           transactionId: "",
-          receivedBy: "",
           amount: Math.min(totalPaid || grandTotal, grandTotal),
           date: new Date(),
         },
@@ -406,7 +366,6 @@ const itemsBatches = batchesData?.batches;
           accountId: "",
           reference: "",
           transactionId: "",
-          receivedBy: "",
           amount: 0,
           date: new Date(),
         },
@@ -416,7 +375,6 @@ const itemsBatches = batchesData?.batches;
           accountId: "",
           reference: "",
           transactionId: "",
-          receivedBy: "",
           amount: 0,
           date: new Date(),
         }
@@ -800,18 +758,6 @@ const itemsBatches = batchesData?.batches;
 
 
   // Modal Actions
-  const openEditTax = () => {
-    setTempTaxType(taxConfig.type);
-    setTempTaxValue(taxConfig.value.toString());
-    setIsEditTaxOpen(true);
-  };
-
-  const saveTax = () => {
-    const val = parseFloat(tempTaxValue) || 0;
-    setTaxConfig({ type: tempTaxType, value: val });
-    setIsEditTaxOpen(false);
-  };
-
   const saveVat = () => {
     const val = parseFloat(tempVatValue) || 0;
     setVatConfig({ type: tempVatType, value: val });
@@ -838,7 +784,7 @@ const itemsBatches = batchesData?.batches;
 
     const payload = {
       customerPhone: selectedParty?.phone || phoneSearchQuery || undefined,
-      customerName: selectedParty?.name || partySearchQuery || defaultCustomerName,
+      customerName: selectedParty?.name || defaultCustomerName,
       discount: totalDiscount,
       tax: parseFloat(totalTax.toFixed(2)),
       additionalCharges: additionalChargeVal,
@@ -856,7 +802,6 @@ const itemsBatches = batchesData?.batches;
           paymentId: p.accountId || (accounts.find((a: any) => a.type === p.method)?.id) || p.id,
           paymentType: p.method,
           amount: p.amount || 0,
-          receivedBy: p.receivedBy || undefined,
         })),
     };
 
@@ -1154,78 +1099,28 @@ const itemsBatches = batchesData?.batches;
               </div>
             </div>
 
-            {/* 3. Customer Name (Auto filled and locked for registered party, or editable for Walking Customer) */}
+            {/* 3. Customer Name (Disabled field) */}
             <div className="relative space-y-2">
               <div className="flex items-center justify-between">
                 <Label className="text-sm font-medium text-foreground">
-                  {isBangla ? "গ্রাহক" : "Customer"}
+                  {isBangla ? "গ্রাহকের নাম" : "Customer Name"}
                 </Label>
-                {selectedParty && (
+                {/* {selectedParty && (
                   <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium bg-emerald-50 dark:bg-emerald-950/50 px-1.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-800">
                     {isBangla ? "নিবন্ধিত গ্রাহক" : "Registered Customer"}
                   </span>
-                )}
+                )} */}
               </div>
               <div className="relative">
                 <Input
-                  value={selectedParty ? selectedParty.name : partySearchQuery}
-                  onChange={(e) => {
-                    if (!selectedParty) {
-                      handlePartyNameChange(e.target.value);
-                      setShowPartyNameSuggestions(true);
-                    }
-                  }}
-                  readOnly={!!selectedParty}
-                  onFocus={() => {
-                    if (!selectedParty) setShowPartyNameSuggestions(true);
-                  }}
-                  onBlur={() => {
-                    setTimeout(() => setShowPartyNameSuggestions(false), 200);
-                  }}
-                  placeholder={defaultCustomerName}
-                  className={`pr-9 h-11 border-input text-xs focus-visible:ring-1 ${
-                    selectedParty
-                      ? "bg-muted/60 cursor-not-allowed text-foreground font-medium select-none"
-                      : "bg-background/50"
-                  }`}
+                  value={selectedParty ? selectedParty.name : defaultCustomerName}
+                  disabled
+                  className="pr-9 h-11 border-input text-xs cursor-not-allowed  font-medium select-none"
                 />
                 {selectedParty ? (
                   <Lock className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 ) : (
                   <Users className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                )}
-
-                {!selectedParty && showPartyNameSuggestions && (
-                  <div className="absolute z-50 left-0 top-full mt-1 w-full bg-card border border-border rounded-lg shadow-xl max-h-60 overflow-y-auto divide-y divide-border text-foreground">
-                    {parties.length === 0 ? (
-                      <div className="p-3 text-center text-xs text-muted-foreground">
-                        {isBangla
-                          ? "কোনো পার্টি পাওয়া যায়নি"
-                          : "No parties found"}
-                      </div>
-                    ) : (
-                      parties.map((party: any) => (
-                        <button
-                          key={party.id}
-                          type="button"
-                          className="w-full text-left p-2.5 hover:bg-muted/80 text-xs transition-colors flex justify-between items-center"
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                            handleSelectParty(party);
-                          }}
-                        >
-                          <span className="font-semibold text-foreground truncate max-w-[140px]">
-                            {party.name}
-                          </span>
-                          {party.phone && (
-                            <span className="text-[10px] text-muted-foreground font-mono">
-                              {party.phone}
-                            </span>
-                          )}
-                        </button>
-                      ))
-                    )}
-                  </div>
                 )}
               </div>
             </div>
@@ -1514,17 +1409,7 @@ const itemsBatches = batchesData?.batches;
 
               {/* Total Tax Display Row */}
               <div className="flex justify-between items-center text-sm font-medium py-0.5">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-muted-foreground">{isBangla ? "মোট ট্যাক্স" : "Total Tax"}</span>
-                  <button
-                    type="button"
-                    onClick={openEditTax}
-                    title={isBangla ? "ট্যাক্স সম্পাদনা করুন" : "Edit Tax"}
-                    className="text-primary hover:text-primary-hover p-0.5 rounded hover:bg-primary/10 transition-colors"
-                  >
-                    <Pencil className="h-3 w-3" />
-                  </button>
-                </div>
+                <span className="text-muted-foreground">{isBangla ? "মোট ট্যাক্স" : "Total Tax"}</span>
                 <span className="text-foreground text-xs font-semibold">
                   Tk. {totalTax.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
@@ -1722,7 +1607,7 @@ const itemsBatches = batchesData?.batches;
 
                       {/* Fields for Cash */}
                       {p.method === "cash" && (
-                        <div className="grid grid-cols-2 gap-3 mb-3">
+                        <div className="mb-3">
                           <div className="flex items-center bg-background/50 rounded-xl border border-border/60 px-3.5 py-2 focus-within:border-primary">
                             <span className="text-muted-foreground text-sm mr-1.5">{"\u09F3"}</span>
                             <input
@@ -1736,13 +1621,6 @@ const itemsBatches = batchesData?.batches;
                               placeholder={isBangla ? "পরিমাণ" : "Amount"}
                             />
                           </div>
-                          <input
-                            type="text"
-                            value={p.receivedBy || ""}
-                            onChange={(e) => handlePaymentFieldChange(p.id, "receivedBy", e.target.value)}
-                            placeholder={isBangla ? "গ্রহীতার নাম" : "Received By (optional)"}
-                            className="w-full bg-background/50 rounded-xl border border-border/60 px-3.5 py-2.5 text-foreground text-xs outline-none placeholder:text-muted-foreground focus:border-primary"
-                          />
                         </div>
                       )}
 
@@ -1911,79 +1789,7 @@ const itemsBatches = batchesData?.batches;
 
       </div>
 
-      {/* Tax Edit Modal */}
-      <Dialog open={isEditTaxOpen} onOpenChange={setIsEditTaxOpen}>
-        <DialogContent className="sm:max-w-md p-6 space-y-4 text-foreground">
-          <DialogHeader>
-            <DialogTitle className="font-bold text-base">
-              {isBangla ? "ট্যাক্স পরিবর্তন করুন" : "Edit Tax"}
-            </DialogTitle>
-          </DialogHeader>
-          
-          <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                {isBangla ? "হিসাবের ধরন" : "Calculation Type"}
-              </Label>
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  type="button"
-                  variant={tempTaxType === "flat" ? "default" : "outline"}
-                  onClick={() => setTempTaxType("flat")}
-                  className="h-10 text-xs font-semibold"
-                >
-                  {isBangla ? "ফ্ল্যাট পরিমাণ (Flat)" : "Flat Amount"}
-                </Button>
-                <Button
-                  type="button"
-                  variant={tempTaxType === "percent" ? "default" : "outline"}
-                  onClick={() => setTempTaxType("percent")}
-                  className="h-10 text-xs font-semibold"
-                >
-                  {isBangla ? "শতকরা (%)" : "Percentage (%)"}
-                </Button>
-              </div>
-            </div>
 
-            <div className="space-y-2">
-              <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                {isBangla ? "ট্যাক্স হার / পরিমাণ" : "Tax Rate / Amount"}
-              </Label>
-              <div className="relative flex items-center">
-                <span className="absolute left-3 text-xs text-muted-foreground font-semibold">
-                  {tempTaxType === "flat" ? "Tk." : "%"}
-                </span>
-                <Input
-                  type="number"
-                  value={tempTaxValue}
-                  onChange={(e) => setTempTaxValue(e.target.value)}
-                  className="pl-10 h-10 bg-background/50 border-input font-bold text-sm"
-                  min="0"
-                  placeholder="0"
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="flex gap-3 border-t border-border/40 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setIsEditTaxOpen(false)}
-              className="flex-1 h-10 text-xs font-semibold border-input"
-            >
-              {isBangla ? "বাতিল" : "Cancel"}
-            </Button>
-            <Button
-              type="button"
-              onClick={saveTax}
-              className="flex-1 h-10 text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground"
-            >
-              {isBangla ? "সংরক্ষণ করুন" : "Save Changes"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* VAT Edit Modal */}
       <Dialog open={isEditVatOpen} onOpenChange={setIsEditVatOpen}>

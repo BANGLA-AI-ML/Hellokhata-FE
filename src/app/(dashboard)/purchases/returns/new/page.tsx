@@ -57,7 +57,6 @@ interface PaymentRow {
   accountId: string;
   reference: string;
   transactionId: string;
-  receivedBy?: string;
   amount: number;
   date: Date;
 }
@@ -206,7 +205,6 @@ function NewPurchaseReturnContent() {
       accountId: "",
       reference: "",
       transactionId: "",
-      receivedBy: "",
       amount: 0,
       date: new Date(),
     },
@@ -277,7 +275,6 @@ function NewPurchaseReturnContent() {
           accountId: "",
           reference: "",
           transactionId: "",
-          receivedBy: "",
           amount: grandTotal,
           date: new Date(),
         },
@@ -292,7 +289,6 @@ function NewPurchaseReturnContent() {
           accountId: "",
           reference: "",
           transactionId: "",
-          receivedBy: "",
           amount: grandTotal,
           date: new Date(),
         },
@@ -302,7 +298,6 @@ function NewPurchaseReturnContent() {
           accountId: "",
           reference: "",
           transactionId: "",
-          receivedBy: "",
           amount: 0,
           date: new Date(),
         },
@@ -312,7 +307,6 @@ function NewPurchaseReturnContent() {
           accountId: "",
           reference: "",
           transactionId: "",
-          receivedBy: "",
           amount: 0,
           date: new Date(),
         }
@@ -1020,7 +1014,7 @@ function NewPurchaseReturnContent() {
 
                         {/* Fields for Cash */}
                         {p.method === "cash" && (
-                          <div className="grid grid-cols-2 gap-3 mb-3">
+                          <div className="mb-3">
                             <div className="flex items-center bg-background/50 rounded-xl border border-border/60 px-3.5 py-2 focus-within:border-primary">
                               <span className="text-muted-foreground text-sm mr-1.5">{"\u09F3"}</span>
                               <input
@@ -1031,13 +1025,6 @@ function NewPurchaseReturnContent() {
                                 placeholder={isBangla ? "পরিমাণ" : "Amount"}
                               />
                             </div>
-                            <input
-                              type="text"
-                              value={p.receivedBy || ""}
-                              onChange={(e) => handlePaymentFieldChange(p.id, "receivedBy", e.target.value)}
-                              placeholder={isBangla ? "গ্রহীতার নাম" : "Received By (optional)"}
-                              className="w-full bg-background/50 rounded-xl border border-border/60 px-3.5 py-2.5 text-foreground text-xs outline-none placeholder:text-muted-foreground focus:border-primary"
-                            />
                           </div>
                         )}
 
