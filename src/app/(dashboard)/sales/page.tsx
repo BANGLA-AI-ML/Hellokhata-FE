@@ -3,7 +3,7 @@
 
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState} from "react";
 import {
   Card,
   Button,
@@ -30,7 +30,6 @@ import {
   FileText,
   BarChart3,
   RotateCcw,
-  CloudCog,
 } from "lucide-react";
 import { useCurrency, useDateFormat } from "@/hooks/useAppTranslation";
 import { useAppTranslation } from "@/hooks/useAppTranslation";
