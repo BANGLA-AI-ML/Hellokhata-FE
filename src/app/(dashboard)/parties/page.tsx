@@ -181,7 +181,7 @@ export default function PartiesPage() {
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground shrink-0" />
                   <Input
-                    placeholder={isBangla ? 'পার্টি খুঁজুন...' : 'Search parties?...'}
+                    placeholder={isBangla ? 'পার্টি খুঁজুন...' : 'Search parties...'}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-9 h-9 text-xs bg-background border-input"

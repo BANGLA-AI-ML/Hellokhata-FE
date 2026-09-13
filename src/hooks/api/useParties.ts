@@ -12,7 +12,7 @@ export const useCreateParty = () => {
     });
 };
 
-export const useParties = (filter: { type?: 'customer' | 'supplier', search?: string, page?:number, limit?: number } = {}) => {
+export const useParties = (filter: { type?: 'customer' | 'supplier',includeWalkIn?:boolean, search?: string, page?:number, limit?: number } = {}) => {
     return useQuery({
         queryKey: ['parties', filter],
         queryFn: () => getParties(filter),

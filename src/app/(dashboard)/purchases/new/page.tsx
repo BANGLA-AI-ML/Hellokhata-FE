@@ -74,7 +74,6 @@ interface PaymentRow {
   accountId: string;
   reference: string;
   transactionId: string;
-  receivedBy?: string;
   amount: number;
   date: Date;
 }
@@ -151,7 +150,7 @@ function NewPurchaseContent() {
   const { data: searchItems = [] } = useGetItems({ page: 1, limit: 10,search: topProductSearchQuery });
   console.log('searchItems',searchItems)
   const { data: suppliers } = useParties({ type: "supplier",search: supplierSearchQuery });
-  const {data: brnaches} = useGetBranches();
+  const { data: brnaches = [] } = useGetBranches();
 
   const { data: paymentMethods = [] } = useGetPaymentMethods();
   const accounts = useMemo(() => {
@@ -167,8 +166,24 @@ function NewPurchaseContent() {
   const [selectedSupplierId, setSelectedSupplierId] = useState<string>(supplierIdParam);
   const [selectedSupplierName,setSelectedSupplierName] = useState<string>('')
 
-  const [branch, setBranch] = useState<{ name: string; id: string }>({ name: "", id: "" });
+  const [selectedBranchId, setSelectedBranchId] = useState<string>("");
   const { data: warehousesList = [] } = useGetWarehouses();
+
+  // Auto-derived active branch: user selection OR default main branch
+  const activeBranch = useMemo(() => {
+    if (!brnaches || brnaches.length === 0) return null;
+    if (selectedBranchId) {
+      return brnaches.find((b: any) => String(b.id) === String(selectedBranchId)) || null;
+    }
+    return (
+      brnaches.find(
+        (b: any) =>
+          b.isMain ||
+          b.type === "main" ||
+          b.name?.toLowerCase().includes("main")
+      ) || brnaches[0]
+    );
+  }, [brnaches, selectedBranchId]);
 
   const [notes, setNotes] = useState("");
   const [invoiceImage, setInvoiceImage] = useState<File | null>(null);
@@ -199,7 +214,6 @@ function NewPurchaseContent() {
       accountId: "",
       reference: "",
       transactionId: "",
-      receivedBy: "",
       amount: 0,
       date: new Date(),
     },
@@ -459,7 +473,7 @@ function NewPurchaseContent() {
       newErrors.supplier = isBangla ? "সরবরাহকারী নির্বাচন করা আবশ্যক" : "Supplier is required";
     }
 
-    if (purchaseType === "in_store" && !branch.id) {
+    if (purchaseType === "in_store" && !activeBranch?.id) {
       newErrors.branch = isBangla ? "শাখা নির্বাচন করা আবশ্যক" : "Branch name is required";
     }
 
@@ -502,7 +516,7 @@ function NewPurchaseContent() {
     setErrors({});
 
     const payload = {
-      branchId: user?.branchId,
+      branchId: activeBranch?.id || user?.branchId,
       allocationMethod: "VALUE",
       additionalCharges: additionalCharges || 0,
       shippingCost: shippingCost || 0,
@@ -573,7 +587,6 @@ function NewPurchaseContent() {
           accountId: "",
           reference: "",
           transactionId: "",
-          receivedBy: "",
           amount: Math.min(totalPaid || grandTotal, grandTotal),
           date: new Date(),
         },
@@ -588,7 +601,6 @@ function NewPurchaseContent() {
           accountId: "",
           reference: "",
           transactionId: "",
-          receivedBy: "",
           amount: Math.min(totalPaid || grandTotal, grandTotal),
           date: new Date(),
         },
@@ -598,7 +610,6 @@ function NewPurchaseContent() {
           accountId: "",
           reference: "",
           transactionId: "",
-          receivedBy: "",
           amount: 0,
           date: new Date(),
         },
@@ -608,7 +619,6 @@ function NewPurchaseContent() {
           accountId: "",
           reference: "",
           transactionId: "",
-          receivedBy: "",
           amount: 0,
           date: new Date(),
         }
@@ -923,7 +933,7 @@ function NewPurchaseContent() {
             )}
           </div>
 
-          {/* 3. Purchase Type (10% width on desktop) */}
+          {/* 3. Purchase Type */}
           <div className="space-y-1.5 col-span-1 sm:col-span-1 lg:col-span-1">
             <div className="flex items-center h-5">
               <Label className="text-xs font-semibold text-foreground truncate">
@@ -940,9 +950,6 @@ function NewPurchaseContent() {
                 });
                 if (val === "warehouse" && !warehouseId && warehousesList.length > 0) {
                   setWarehouseId(String(warehousesList[0].id));
-                } else if (val === "in_store" && !branch.id && brnaches && brnaches.length > 0) {
-                  const mainB = brnaches.find((b: any) => b.isMain || b.type === "main" || b.name?.toLowerCase().includes("main")) || brnaches[0];
-                  if (mainB) setBranch({ id: String(mainB.id), name: mainB.name });
                 }
               }}
             >
@@ -1003,12 +1010,9 @@ function NewPurchaseContent() {
                   </Label>
                 </div>
                 <Select
-                  value={branch.id ? String(branch.id) : undefined}
+                  value={activeBranch?.id ? String(activeBranch.id) : undefined}
                   onValueChange={(selectedId) => {
-                    const selectedObj = brnaches?.find((b: any) => String(b.id) === String(selectedId));
-                    if (selectedObj) {
-                      setBranch({ id: String(selectedObj.id), name: selectedObj.name });
-                    }
+                    setSelectedBranchId(selectedId);
                     if (errors.branch) {
                       setErrors((prev) => {
                         const { branch, ...rest } = prev;
@@ -1021,7 +1025,7 @@ function NewPurchaseContent() {
                     <SelectValue placeholder={isBangla ? "শাখা নির্বাচন করুন" : "Select Branch"} />
                   </SelectTrigger>
                   <SelectContent>
-                    {brnaches?.map((b: any) => (
+                    {brnaches.map((b: any) => (
                       <SelectItem key={b.id} value={String(b.id)}>
                         {b.name}
                       </SelectItem>
@@ -1588,7 +1592,7 @@ function NewPurchaseContent() {
 
                     {/* Fields for Cash */}
                     {p.method === "cash" && (
-                      <div className="grid grid-cols-2 gap-3 mb-3">
+                      <div className="mb-3">
                         <div className="flex items-center bg-background/50 rounded-xl border border-border/60 px-3.5 py-2 focus-within:border-primary">
                           <span className="text-muted-foreground text-sm mr-1.5">{"\u09F3"}</span>
                           <input
@@ -1602,13 +1606,6 @@ function NewPurchaseContent() {
                             placeholder={isBangla ? "পরিমাণ" : "Amount"}
                           />
                         </div>
-                        <input
-                          type="text"
-                          value={p.receivedBy || ""}
-                          onChange={(e) => handlePaymentFieldChange(p.id, "receivedBy", e.target.value)}
-                          placeholder={isBangla ? "গ্রহীতার নাম" : "Received By (optional)"}
-                          className="w-full bg-background/50 rounded-xl border border-border/60 px-3.5 py-2.5 text-foreground text-xs outline-none placeholder:text-muted-foreground focus:border-primary"
-                        />
                       </div>
                     )}
 
