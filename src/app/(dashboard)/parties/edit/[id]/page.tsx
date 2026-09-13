@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useState, useEffect, use } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { BackButton } from '@/components/common';
@@ -22,44 +22,52 @@ import {
   CreditCard,
   FileText,
   Sparkles,
+  Trash2,
+  Loader2,
+  Users,
+  ArrowLeft,
 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { useAppTranslation } from '@/hooks/useAppTranslation';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { useUser } from '@/stores';
-import { useCreateParty } from '@/hooks/api/useParties';
+import { useParty, useUpdateParty, useDeleteParty } from '@/hooks/api/useParties';
+import { PartyFormPayload } from '@/app/(dashboard)/parties/new/page';
 
-export interface PartyFormPayload {
-  name: string;
-  phone?: string;
-  email?: string;
-  address?: string;
-  type: "customer" | "supplier" | 'both';
-  branchId: string;
-  openingBalance: number;
-  balanceDirection?: "receive" | "give";
-  creditLimit?: number;
-  notes?: string;
-  avatarUrl?: string;
+interface EditPartyPageProps {
+  params: Promise<{ id: string }>;
 }
 
-export type Party = PartyFormPayload;
-
-function NewPartyFormContent() {
+export default function EditPartyPage({ params }: EditPartyPageProps) {
+  const { id } = use(params);
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const initialType = (searchParams.get('type') as 'customer' | 'supplier' | 'both') || 'customer';
-
   const { isBangla } = useAppTranslation();
-  const createMutation = useCreateParty();
   const user = useUser();
+
+  const { data: partyResponse, isLoading } = useParty(id);
+  const party = partyResponse?.data || partyResponse;
+  const updateMutation = useUpdateParty(id);
+  const deleteMutation = useDeleteParty();
+
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
     email: '',
     address: '',
-    type: (['customer', 'supplier', 'both'].includes(initialType) ? initialType : 'customer') as 'customer' | 'supplier' | 'both',
+    type: 'customer' as 'customer' | 'supplier' | 'both',
     openingBalance: '0',
     balanceType: 'receive' as 'receive' | 'give',
     creditLimit: '',
@@ -67,11 +75,30 @@ function NewPartyFormContent() {
     avatarUrl: '',
   });
 
+  // Pre-fill form when party data loads
+  useEffect(() => {
+    if (party) {
+      setFormData({
+        name: party.name || '',
+        phone: party.phone || '',
+        email: party.email || '',
+        address: party.address || '',
+        type: (party.type as any) || 'customer',
+        openingBalance: party.openingBalance != null ? Math.abs(party.openingBalance).toString() : '0',
+        balanceType: (party.openingBalance || 0) < 0 || party.balanceDirection === 'give' ? 'give' : 'receive',
+        creditLimit: party.creditLimit != null ? party.creditLimit.toString() : '',
+        notes: party.notes || '',
+        avatarUrl: party.avatarUrl || party.photo || '',
+      });
+    }
+  }, [party]);
+
   const updateForm = (key: keyof typeof formData, value: any) => {
     setFormData((prev) => ({ ...prev, [key]: value }));
   };
 
-  const isPending = createMutation.isPending;
+  const isPending = updateMutation.isPending;
+  const isDeleting = deleteMutation.isPending;
 
   const handleSubmit = async () => {
     if (!formData.name.trim()) {
@@ -93,13 +120,55 @@ function NewPartyFormContent() {
       avatarUrl: formData.avatarUrl || undefined,
     };
 
-    createMutation.mutate(partyItem, {
+    updateMutation.mutate({ id, data: partyItem }, {
       onSuccess: () => {
-        toast.success(isBangla ? 'পার্টি তৈরি হয়েছে!' : 'Party created successfully!');
+        toast.success(isBangla ? 'পার্টি তথ্য আপডেট হয়েছে!' : 'Party updated successfully!');
         router.push('/parties');
       },
     });
   };
+
+  const handleDelete = () => {
+    deleteMutation.mutate(id, {
+      onSuccess: () => {
+        toast.success(isBangla ? 'পার্টি মুছে ফেলা হয়েছে!' : 'Party deleted successfully!');
+        router.push('/parties');
+      },
+    });
+  };
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-9 w-9 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+          <p className="text-xs text-muted-foreground">{isBangla ? 'তথ্য লোড হচ্ছে...' : 'Loading party details...'}</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Not found state
+  if (!party) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-4">
+        <div className="h-16 w-16 rounded-2xl bg-muted/60 flex items-center justify-center text-muted-foreground">
+          <Users className="h-8 w-8 opacity-60" />
+        </div>
+        <div>
+          <h2 className="text-lg font-bold text-foreground">{isBangla ? 'পার্টি পাওয়া যায়নি' : 'Party Not Found'}</h2>
+          <p className="text-xs text-muted-foreground mt-1">
+            {isBangla ? 'অনুরোধকৃত পার্টির তথ্য খুঁজে পাওয়া যায়নি অথবা মুছে ফেলা হয়েছে।' : 'The requested party does not exist or has been removed.'}
+          </p>
+        </div>
+        <Button variant="outline" size="sm" onClick={() => router.push('/parties')}>
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          {isBangla ? 'পার্টি তালিকায় ফিরুন' : 'Back to Parties'}
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full space-y-6 pb-12">
@@ -110,22 +179,59 @@ function NewPartyFormContent() {
           <div>
             <div className="flex items-center gap-2.5">
               <h1 className="text-2xl font-bold tracking-tight text-foreground">
-                {isBangla ? 'নতুন পার্টি যোগ' : 'Create New Party'}
+                {isBangla ? 'পার্টি তথ্য সম্পাদনা' : 'Edit Party'}
               </h1>
               <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/20">
-                New Entry
+                Edit Mode
               </span>
             </div>
             <p className="text-xs text-muted-foreground mt-0.5">
               {isBangla
-                ? 'নতুন গ্রাহক বা সরবরাহকারীর বিবরণ পূরণ করুন'
-                : 'Enter complete profiles for your customer or supplier'}
+                ? 'পার্টির বিদ্যমান যোগাযোগের তথ্য ও ব্যালেন্স সংশোধন করুন'
+                : 'Modify party profile, opening balance, and contact credentials'}
             </p>
           </div>
         </div>
 
         {/* Action buttons at top header */}
         <div className="flex items-center gap-3">
+          {/* Delete Button */}
+          <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="outline"
+                className="h-10 px-4 text-xs font-semibold text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/30 cursor-pointer"
+              >
+                <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                {isBangla ? 'মুছুন' : 'Delete'}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent className="max-w-[380px]">
+              <AlertDialogHeader>
+                <AlertDialogTitle>{isBangla ? 'পার্টি মুছবেন?' : 'Delete Party?'}</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {isBangla
+                    ? 'এই কাজ পূর্বাবস্থায় ফেরানো যাবে না। পার্টিটি স্থায়ীভাবে মুছে ফেলা হবে।'
+                    : 'This action cannot be undone. This party profile will be permanently deleted.'}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>{isBangla ? 'বাতিল' : 'Cancel'}</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleDelete}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  {isDeleting ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-4 w-4 mr-2" />
+                  )}
+                  {isBangla ? 'মুছুন' : 'Delete'}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
           <Button
             variant="outline"
             onClick={() => router.back()}
@@ -134,6 +240,7 @@ function NewPartyFormContent() {
             <X className="h-3.5 w-3.5 mr-1.5" />
             {isBangla ? 'বাতিল' : 'Cancel'}
           </Button>
+
           <Button
             onClick={handleSubmit}
             disabled={isPending}
@@ -142,12 +249,12 @@ function NewPartyFormContent() {
             {isPending ? (
               <span className="flex items-center gap-2">
                 <span className="animate-spin rounded-full h-4 w-4 border-2 border-primary-foreground border-t-transparent" />
-                {isBangla ? 'সংরক্ষণ হচ্ছে...' : 'Saving...'}
+                {isBangla ? 'আপডেট হচ্ছে...' : 'Updating...'}
               </span>
             ) : (
               <>
                 <Check className="h-4 w-4 mr-1.5" />
-                {isBangla ? 'সংরক্ষণ করুন' : 'Save Party'}
+                {isBangla ? 'আপডেট করুন' : 'Update Party'}
               </>
             )}
           </Button>
@@ -446,12 +553,12 @@ function NewPartyFormContent() {
               {isPending ? (
                 <span className="flex items-center gap-2">
                   <span className="animate-spin rounded-full h-4 w-4 border-2 border-primary-foreground border-t-transparent" />
-                  {isBangla ? 'সংরক্ষণ হচ্ছে...' : 'Saving...'}
+                  {isBangla ? 'আপডেট হচ্ছে...' : 'Updating...'}
                 </span>
               ) : (
                 <>
                   <Check className="h-4 w-4 mr-2" />
-                  {isBangla ? 'পার্টি তৈরি করুন' : 'Save Party'}
+                  {isBangla ? 'আপডেট করুন' : 'Update Party'}
                 </>
               )}
             </Button>
@@ -459,17 +566,5 @@ function NewPartyFormContent() {
         </div>
       </div>
     </div>
-  );
-}
-
-export default function NewPartyPage() {
-  return (
-    <Suspense fallback={
-      <div className="flex items-center justify-center p-12">
-        <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-      </div>
-    }>
-      <NewPartyFormContent />
-    </Suspense>
   );
 }

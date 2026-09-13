@@ -31,7 +31,6 @@ import { cn } from '@/lib/utils';
 import type { Party } from '@/types';
 import { useRouter } from 'next/navigation';
 import { useParties, useDeleteParty } from '@/hooks/api/useParties';
-import { useSearch } from '@/hooks/api/useSearch';
 import { getInitials } from '@/components/parties/utils';
 import { PartyDetailsAndTransactions } from '@/components/parties/PartyDetailsAndTransactions';
 import { toast } from 'sonner';
@@ -40,13 +39,13 @@ export default function PartiesPage() {
   const { t, isBangla } = useAppTranslation();
   const { formatCurrency } = useCurrency();
   const [searchTerm, setSearchTerm] = useState('');
-  const [typeFilter, setTypeFilter] = useState<'customer' | 'supplier' | 'both'>('both');
+  const [typeFilter, setTypeFilter] = useState<'customer' | 'supplier' | 'all'>('all');
   const [paymentFilter, setPaymentFilter] = useState<'all' | 'receivable' | 'payable' | 'settled'>('all');
   const [selectedParty, setSelectedParty] = useState<Party | null>(null);
   const deletePartyMutation = useDeleteParty();
 
   const handleEditParty = (party: Party) => {
-    router.push(`/parties/new?id=${party.id}`);
+    router.push(`/parties/edit/${party.id}`);
   };
 
   const handleDeleteParty = (partyId: string, partyName: string) => {
@@ -62,24 +61,9 @@ export default function PartiesPage() {
     }
   };
 
-  const { data: parties, isLoading } = useParties(
-    typeFilter !== 'both' ? { type: typeFilter } : {}
-  );
-
-  const { data: partiesSearchData } = useSearch({ index: "parties", query: searchTerm });
-  const searchParties = partiesSearchData?.data.hits;
+  const { data: parties=[], isLoading } = useParties( { type: typeFilter,search:searchTerm, });
   const router = useRouter();
 
-  // Client-side filtering (payment status only, type is filtered by API)
-  const filteredParties = parties?.filter((party: any) => {
-    // Payment status filter
-    if (paymentFilter !== 'all') {
-      if (paymentFilter === 'receivable' && party.currentBalance <= 0) return false;
-      if (paymentFilter === 'payable' && party.currentBalance >= 0) return false;
-      if (paymentFilter === 'settled' && party.currentBalance !== 0) return false;
-    }
-    return true;
-  });
 
   return (
     <>
@@ -197,7 +181,7 @@ export default function PartiesPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setTypeFilter(typeFilter === 'customer' ? 'both' : 'customer')}
+                  onClick={() => setTypeFilter(typeFilter === 'customer' ? 'all' : 'customer')}
                   className={cn(
                     "rounded-full px-4 h-8 text-xs font-medium border-input cursor-pointer",
                     typeFilter === 'customer'
@@ -210,7 +194,7 @@ export default function PartiesPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setTypeFilter(typeFilter === 'supplier' ? 'both' : 'supplier')}
+                  onClick={() => setTypeFilter(typeFilter === 'supplier' ? 'all' : 'supplier')}
                   className={cn(
                     "rounded-full px-4 h-8 text-xs font-medium border-input cursor-pointer",
                     typeFilter === 'supplier'
@@ -241,7 +225,7 @@ export default function PartiesPage() {
                 <div className="flex items-center justify-center flex-1 py-12">
                   <Loader2 className="animate-spin h-8 w-8 text-primary" />
                 </div>
-              ) : (searchTerm !== '' ? searchParties : filteredParties)?.length === 0 ? (
+              ) : parties?.length === 0 ? (
                 <div className="flex-1 py-12">
                   <EmptyState
                     icon={Users}
@@ -269,7 +253,7 @@ export default function PartiesPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border/60">
-                      {(searchTerm !== '' ? searchParties : filteredParties)?.map((party: any) => {
+                      {parties?.map((party: any) => {
                         const typeConfig = {
                           customer: {
                             label: isBangla ? 'গ্রাহক' : 'Customer',
@@ -279,12 +263,8 @@ export default function PartiesPage() {
                             label: isBangla ? 'সরবরাহকারী' : 'Supplier',
                             color: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
                           },
-                          both: {
-                            label: isBangla ? 'উভয়' : 'Both',
-                            color: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-                          },
                         };
-                        const currentType = typeConfig[party.type as keyof typeof typeConfig] || typeConfig.customer;
+                        const currentType = typeConfig[party.type as keyof typeof typeConfig];
                         const totalPaid = party.totalPaid ?? party.totalPayments ?? 0;
                         const totalDue = party.totalDue ?? party.dueAmount ?? party.currentBalance ?? 0;
 
@@ -301,14 +281,14 @@ export default function PartiesPage() {
                             <td className="px-3.5 py-3 align-middle">
                               <div className="flex items-center gap-2.5">
                                 <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0 border border-primary/20">
-                                  {getInitials(party.name)}
+                                  {getInitials(party?.name)}
                                 </div>
                                 <div className="min-w-0">
                                   <p className="font-semibold text-foreground truncate leading-tight text-xs">
-                                    {party.name}
+                                    {party?.name}
                                   </p>
-                                  <span className={cn("inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-medium border shrink-0 mt-0.5", currentType.color)}>
-                                    {currentType.label}
+                                  <span className={cn("inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-medium border shrink-0 mt-0.5", currentType?.color)}>
+                                    {currentType?.label}
                                   </span>
                                 </div>
                               </div>
@@ -316,12 +296,12 @@ export default function PartiesPage() {
 
                             {/* Phone */}
                             <td className="px-3.5 py-3 align-middle text-muted-foreground font-mono text-xs whitespace-nowrap">
-                              {party.phone || '—'}
+                              {party?.phone || '—'}
                             </td>
 
                             {/* Email */}
-                            <td className="px-3.5 py-3 align-middle text-muted-foreground text-xs truncate max-w-[160px]" title={party.email}>
-                              {party.email || '—'}
+                            <td className="px-3.5 py-3 align-middle text-muted-foreground text-xs truncate max-w-[160px]" title={party?.email}>
+                              {party?.email || '—'}
                             </td>
 
                             {/* Address */}
