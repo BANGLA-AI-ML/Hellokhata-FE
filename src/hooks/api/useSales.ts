@@ -11,7 +11,7 @@ export const useCreateSales = () => {
     })
 }
 
-export const useGetSales = (filter: { search?: string, partyId?: string } = {}) => {
+export const useGetSales = (filter: { search?: string, partyId?: string,limit?:number,page?:number } = {}) => {
     return useQuery({
         queryKey: ['sales', filter],
         queryFn: () => getSales(filter)
@@ -21,7 +21,8 @@ export const useGetSales = (filter: { search?: string, partyId?: string } = {}) 
 export const useGetSalesSummary = () => {
     return useQuery({
         queryKey: ['sales', 'summary'],
-        queryFn: getSalesSummary
+        queryFn: getSalesSummary,
+        select: data => data.data
     })
 }
 

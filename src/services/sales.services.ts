@@ -5,7 +5,7 @@ export const createSales = async (item: any) => {
     return res.data
 }
 
-export const getSales = async (filter: { search?: string, partyId?: string } = {}) => {
+export const getSales = async (filter: { search?: string, partyId?: string,limit?:number,page?:number } = {}) => {
     const res = await client.get('/api/sales', { params: filter });
     return res.data
 }
