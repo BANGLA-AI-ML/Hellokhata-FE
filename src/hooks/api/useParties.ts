@@ -18,7 +18,7 @@ export const usePartyStats = () =>{
         queryFn: getPartyStats,
     })
 }
-export const useParties = (filter: { type?: 'customer' | 'supplier' | 'all',includeWalkIn?:boolean, search?: string, page?:number, limit?: number } = {}) => {
+export const useParties = (filter: { type?: 'customer' | 'supplier' | 'all',includeWalkIn?:boolean, search?: string, page?:number, limit?: number,balanceType?:'receivable' | 'payable',sortBy?:string } = {}) => {
     return useQuery({
         queryKey: ['parties', filter],
         queryFn: () => getParties(filter),
