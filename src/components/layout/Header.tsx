@@ -168,7 +168,7 @@ export function Header({ onOpenCommandPalette, onOpenVoice }: HeaderProps) {
         >
           <Search className="h-4 w-4 shrink-0" />
           <span className="text-sm flex-1 text-left">
-            {isBangla ? 'খুঁজুন বা কমান্ড লিখুন...' : 'Search or type a command...'}
+            {isBangla ? 'খুঁজুন বা কমান্ড লিখুন...' : 'Search....'}
           </span>
           <div className="flex items-center gap-0.5 shrink-0">
             <kbd className="px-1.5 py-0.5 rounded bg-muted text-[10px] border border-border-subtle group-hover:bg-card">⌘</kbd>

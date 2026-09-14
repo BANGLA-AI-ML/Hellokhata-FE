@@ -10,7 +10,6 @@ import { useParty, useDeleteParty, usePartyLedger } from "@/hooks/api/useParties
 import { toast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,7 +18,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -28,10 +26,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  User,
   Trash2,
-  Search,
-  ArrowUpDown,
   Plus,
   CreditCard,
   ChevronLeft,
@@ -75,22 +70,15 @@ export function PartyDetailsAndTransactions({
   const { formatDate } = useDateFormat();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const { mutate: deleteParty, isPending: isDeleting } = useDeleteParty();
-
-  const [txSearchTerm, setTxSearchTerm] = useState("");
-  const [txSortOrder, setTxSortOrder] = useState<"desc" | "asc">("desc");
-  const [showTxSearch, setShowTxSearch] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
   const [selectedTransaction, setSelectedTransaction] = useState<any | null>(null);
 
   useEffect(() => {
     setCurrentPage(1);
-    setTxSearchTerm("");
-    setShowTxSearch(false);
     setSelectedTransaction(null);
   }, [partyId]);
 
-  console.log('selectedTransaction',selectedTransaction)
   const {
     data: ledgerData,
     isLoading: isLedgerLoading,
@@ -98,7 +86,6 @@ export function PartyDetailsAndTransactions({
   } = usePartyLedger(partyId, {
     page: currentPage,
     limit: itemsPerPage,
-    sort: txSortOrder,
   });
 
   const [showPaymentInModal, setShowPaymentInModal] = useState(false);
@@ -285,7 +272,13 @@ export function PartyDetailsAndTransactions({
       {/* Quick Action buttons */}
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-2">
-          <DropdownMenu>
+          <Button
+                onClick={() => setShowEditPartyModal(true)}
+              >
+                <Edit className="h-3.5 w-3.5 mr-2" />
+                {isBangla ? "সম্পাদনা করুন" : "Edit Party"}
+              </Button>
+          {/* <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="outline"
@@ -311,7 +304,7 @@ export function PartyDetailsAndTransactions({
                 {isBangla ? "মুছে ফেলুন" : "Delete Party"}
               </DropdownMenuItem>
             </DropdownMenuContent>
-          </DropdownMenu>
+          </DropdownMenu> */}
         </div>
 
         <Button
@@ -326,8 +319,8 @@ export function PartyDetailsAndTransactions({
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-        {/* Advance Balance Card */}
+      {/* <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+ 
         <div className="bg-[#f0f3ff] dark:bg-indigo-950/20 border border-indigo-100/60 dark:border-indigo-900/30 rounded-2xl p-3.5 flex flex-col justify-between">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
@@ -344,7 +337,6 @@ export function PartyDetailsAndTransactions({
           </div>
         </div>
 
-        {/* Total Purchase Card */}
         <div className="bg-[#f6f2fe] dark:bg-purple-950/20 border border-purple-100/60 dark:border-purple-900/30 rounded-2xl p-3.5 flex flex-col justify-between">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
@@ -371,7 +363,7 @@ export function PartyDetailsAndTransactions({
           </div>
         </div>
 
-        {/* Total Paid Card */}
+      
         <div className="bg-[#f0fdf4] dark:bg-emerald-950/20 border border-emerald-100/60 dark:border-emerald-900/30 rounded-2xl p-3.5 flex flex-col justify-between">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
@@ -398,7 +390,7 @@ export function PartyDetailsAndTransactions({
           </div>
         </div>
 
-        {/* Total Due Card */}
+  
         <div className="bg-[#fef2f2] dark:bg-rose-950/20 border border-rose-100/60 dark:border-rose-900/30 rounded-2xl p-3.5 flex flex-col justify-between">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
@@ -428,7 +420,7 @@ export function PartyDetailsAndTransactions({
             </div>
           </div>
         </div>
-      </div>
+      </div> */}
 
       {/* Delete Dialog */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
@@ -472,47 +464,6 @@ export function PartyDetailsAndTransactions({
           </h3>
 
           <div className="flex items-center gap-2">
-            {showTxSearch && (
-              <Input
-                placeholder={isBangla ? "খুঁজুন..." : "Search..."}
-                value={txSearchTerm}
-                onChange={(e) => {
-                  setTxSearchTerm(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="h-9 w-36 text-xs bg-background border-input"
-                autoFocus
-              />
-            )}
-            <Button
-              variant="outline"
-              size="icon"
-              className={cn(
-                "h-9 w-9 border-input hover:bg-accent hover:text-accent-foreground text-foreground shrink-0",
-                showTxSearch && "bg-accent",
-              )}
-              onClick={() => {
-                setShowTxSearch(!showTxSearch);
-                if (showTxSearch) setTxSearchTerm("");
-                setCurrentPage(1);
-              }}
-            >
-              <Search className="h-4 w-4 text-muted-foreground" />
-            </Button>
-
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-9 border-input hover:bg-accent hover:text-accent-foreground text-foreground text-xs font-semibold flex items-center gap-1.5 shrink-0"
-              onClick={() => {
-                setTxSortOrder(txSortOrder === "desc" ? "asc" : "desc");
-                setCurrentPage(1);
-              }}
-            >
-              <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground" />
-              {isBangla ? "সাজান" : "Sort"}
-            </Button>
-
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button className="bg-primary hover:bg-primary/90 text-primary-foreground h-9 px-4 text-xs font-semibold flex items-center gap-1 shrink-0">

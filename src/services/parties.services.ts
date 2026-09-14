@@ -10,7 +10,7 @@ export const getPartyStats = async () =>{
   const res = await client.get('/api/parties/stats')
   return res.data
 }
-export const getParties = async (filter: { type?: 'customer' | 'supplier' | 'all',includeWalkIn?:boolean, search?: string, page?:number, limit?: number } = {}) => {
+export const getParties = async (filter: { type?: 'customer' | 'supplier' | 'all',includeWalkIn?:boolean, search?: string, page?:number, limit?: number,balanceType?:'receivable' | 'payable',sortBy?:string } = {}) => {
   const res = await client.get("/api/parties", { params: filter });
   return res.data;
 };
