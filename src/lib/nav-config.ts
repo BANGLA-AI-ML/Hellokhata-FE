@@ -173,12 +173,12 @@ export const navGroups: NavItem[] = [
         labelKey: "Stock Transfer",
         labelBn: "স্টক ট্রান্সফার",
       },
-      {
-        page: "/inventory/promotions",
-        icon: Sparkles,
-        labelKey: "Offers & Promotions",
-        labelBn: "প্রমোশন ও অফার",
-      },
+      // {
+      //   page: "/inventory/promotions",
+      //   icon: Sparkles,
+      //   labelKey: "Offers & Promotions",
+      //   labelBn: "প্রমোশন ও অফার",
+      // },
     ],
   },
   {

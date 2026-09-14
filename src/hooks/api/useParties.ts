@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createParty, deleteParty, getParties, getParty, getPartyLedger, updateParty } from "@/services/parties.services";
+import { createParty, deleteParty, getParties, getParty, getPartyLedger, getPartyStats, updateParty } from "@/services/parties.services";
 // import { Party } from "@/app/(dashboard)/parties/new/page";
 
 export const useCreateParty = () => {
@@ -12,6 +12,12 @@ export const useCreateParty = () => {
     });
 };
 
+export const usePartyStats = () =>{
+    return useQuery({
+        queryKey:['party-stats'],
+        queryFn: getPartyStats,
+    })
+}
 export const useParties = (filter: { type?: 'customer' | 'supplier' | 'all',includeWalkIn?:boolean, search?: string, page?:number, limit?: number } = {}) => {
     return useQuery({
         queryKey: ['parties', filter],

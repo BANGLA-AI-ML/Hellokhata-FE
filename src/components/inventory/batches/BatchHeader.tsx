@@ -14,7 +14,7 @@ interface BatchHeaderProps {
 }
 
 export function BatchHeader({
-  totalBatches = 0,
+  // totalBatches = 0,
   onAddBatch,
 }: BatchHeaderProps) {
   const { isBangla } = useAppTranslation();
@@ -34,12 +34,6 @@ export function BatchHeader({
                   <Package className="h-5 w-5 text-primary" />
                   {isBangla ? "ব্যাচ ট্র্যাকিং ও ম্যানেজমেন্ট" : "Batch Management"}
                 </h1>
-                <Badge
-                  variant="outline"
-                  className="font-mono text-xs font-semibold bg-muted/50 border-border"
-                >
-                  {totalBatches} {isBangla ? "টি ব্যাচ" : "Batches"}
-                </Badge>
               </div>
               <p className="text-xs text-muted-foreground mt-0.5">
                 {isBangla

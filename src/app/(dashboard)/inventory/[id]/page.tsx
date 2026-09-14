@@ -24,10 +24,6 @@ import {
   Package,
   Layers,
   Store,
-  ShoppingBag,
-  TrendingUp,
-  History,
-  Tag,
   FileText,
 } from "lucide-react";
 import { useGetSingleItem } from "@/hooks/api/useItems";

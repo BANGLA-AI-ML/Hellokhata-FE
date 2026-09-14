@@ -136,7 +136,7 @@ export default function BatchesPage() {
     <div className="min-h-screen space-y-4 pb-20">
       {/* Page Header */}
       <BatchHeader
-        totalBatches={batchesStatus?.totalBatches || totalBatchesCount}
+        // totalBatches={batchesStatus?.totalBatches }
         onAddBatch={() => router.push('/inventory/new')}
       />
 

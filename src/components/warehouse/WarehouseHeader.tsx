@@ -76,7 +76,7 @@ export function WarehouseHeader({
           </Button>
 
           {/* Overflow Menu Dropdown (Includes Edit, Transfer, Import, Export) */}
-          <DropdownMenu>
+          {/* <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="icon" className="h-8.5 w-8.5 border-border/80 cursor-pointer">
                 <MoreVertical className="h-4 w-4" />
@@ -123,7 +123,7 @@ export function WarehouseHeader({
                 </DropdownMenuItem>
               )}
             </DropdownMenuContent>
-          </DropdownMenu>
+          </DropdownMenu> */}
         </div>
       </div>
     </div>

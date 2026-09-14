@@ -409,9 +409,9 @@ export default function AddProductPage() {
                       <label className="text-xs font-medium text-foreground">
                         Category
                       </label>
-                      <button className="text-[11px] text-primary hover:underline font-medium">
+                      {/* <button className="text-[11px] text-primary hover:underline font-medium">
                         + Add
-                      </button>
+                      </button> */}
                     </div>
                     <select
                       value={categoryId}
@@ -432,9 +432,9 @@ export default function AddProductPage() {
                       <label className="text-xs font-medium text-foreground">
                         Brand
                       </label>
-                      <button className="text-[11px] text-primary hover:underline font-medium">
+                      {/* <button className="text-[11px] text-primary hover:underline font-medium">
                         + Add
-                      </button>
+                      </button> */}
                     </div>
                     <input
                       type="text"
