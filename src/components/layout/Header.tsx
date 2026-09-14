@@ -142,11 +142,11 @@ export function Header({ onOpenCommandPalette, onOpenVoice }: HeaderProps) {
       </Button>
 
       {/* Global Back Navigation Button */}
-      <BackButton
+      {/* <BackButton
         variant="subtle"
         size="sm"
         className="shrink-0"
-      />
+      /> */}
 
       {/* Branch Switcher - Show on desktop */}
       <div className="hidden md:block">

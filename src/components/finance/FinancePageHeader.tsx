@@ -31,7 +31,7 @@ export function FinancePageHeader({
   icon: Icon,
   parentName = 'Finance & Accounting',
   parentNameBn = 'অর্থায়ন ও হিসাববিজ্ঞান',
-  parentHref = '/finance/overview',
+  parentHref,
 }: FinancePageHeaderProps) {
   const { isBangla } = useAppTranslation();
   
@@ -41,19 +41,29 @@ export function FinancePageHeader({
 
   return (
     <div className="space-y-4 mb-6">
-      <Breadcrumb>
+      {/* <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
             <BreadcrumbLink href="/" className="text-muted-foreground hover:text-foreground">
               {isBangla ? 'ড্যাশবোর্ড' : 'Dashboard'}
             </BreadcrumbLink>
           </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbLink href={parentHref} className="text-muted-foreground hover:text-foreground">
-              {displayParentName}
-            </BreadcrumbLink>
-          </BreadcrumbItem>
+          {displayParentName && (
+            <>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                {parentHref ? (
+                  <BreadcrumbLink href={parentHref} className="text-muted-foreground hover:text-foreground">
+                    {displayParentName}
+                  </BreadcrumbLink>
+                ) : (
+                  <span className="text-muted-foreground">
+                    {displayParentName}
+                  </span>
+                )}
+              </BreadcrumbItem>
+            </>
+          )}
           <BreadcrumbSeparator />
           <BreadcrumbItem>
             <BreadcrumbPage className="font-medium text-foreground max-w-[200px] truncate">
@@ -61,7 +71,7 @@ export function FinancePageHeader({
             </BreadcrumbPage>
           </BreadcrumbItem>
         </BreadcrumbList>
-      </Breadcrumb>
+      </Breadcrumb> */}
       
       <div className="flex items-start gap-4">
         {Icon && (

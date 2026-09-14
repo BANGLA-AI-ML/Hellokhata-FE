@@ -150,11 +150,11 @@ export default function FinanceSettingsPage() {
     <div className="space-y-6">
       {/* 1. Page Header */}
       <FinancePageHeader
-        pageName="Settings"
-        pageNameBn="সেটিংস"
-        description="Configure accounting preferences, fiscal cycles, period lock settings, and standard tax parameters."
-        descriptionBn="হিসাববিজ্ঞান প্রিফারেন্স, অর্থবছর, ব্যাকডেটেড এন্ট্রি লক সেটিংস এবং স্ট্যান্ডার্ড কর রেট কনফিগার করুন।"
-        icon={Settings}
+        pageName="VAT & Tax Settings"
+        pageNameBn="ভ্যাট ও ট্যাক্স সেটিংস"
+        description="Configure standard VAT and tax rules, rates, and active statuses for your transactions."
+        descriptionBn="আপনার লেনদেনের জন্য আদর্শ ভ্যাট ও কর নিয়মাবলী, শতকরা হার এবং স্ট্যাটাস কনফিগার করুন।"
+        icon={Percent}
       />
 
       {/* 2. Access Control Lock Banner */}
@@ -186,8 +186,7 @@ export default function FinanceSettingsPage() {
       )}
 
       {/* 4. Settings Tabs Selector */}
-      <div className="flex gap-2 border-b border-border/40 pb-1 text-xs font-semibold">
-      
+      {/* <div className="flex gap-2 border-b border-border/40 pb-1 text-xs font-semibold">
         <button
           onClick={() => setActiveTab('taxes')}
           className={cn(
@@ -199,7 +198,7 @@ export default function FinanceSettingsPage() {
           <span>{isBangla ? 'ভ্যাট ও কর রেট' : 'VAT & Taxes'}</span>
         </button>
 
-  <button
+        <button
           onClick={() => setActiveTab('fiscal')}
           className={cn(
             'py-2 px-3 border-b-2 transition-all flex items-center gap-1.5',
@@ -209,7 +208,6 @@ export default function FinanceSettingsPage() {
           <CalendarDays className="h-4 w-4" />
           <span>{isBangla ? 'অর্থবছর ও লক সেটিংস' : 'Fiscal & Lock Period'}</span>
         </button>
-
 
         <button
           onClick={() => setActiveTab('preferences')}
@@ -221,7 +219,7 @@ export default function FinanceSettingsPage() {
           <Sliders className="h-4 w-4" />
           <span>{isBangla ? 'হিসাববিজ্ঞান পছন্দ' : 'Preferences'}</span>
         </button>
-      </div>
+      </div> */}
 
       {/* 5. Tab Panels */}
       <div className="space-y-4">

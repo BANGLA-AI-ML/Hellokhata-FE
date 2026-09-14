@@ -169,7 +169,7 @@ export default function FinanceTransactionsPage() {
       {/* 1. Breadcrumbs Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div className="space-y-1.5">
-          <Breadcrumb>
+          {/* <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem>
                 <BreadcrumbLink href="/" className="text-muted-foreground hover:text-foreground">
@@ -189,7 +189,7 @@ export default function FinanceTransactionsPage() {
                 </BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
-          </Breadcrumb>
+          </Breadcrumb> */}
           <div className="flex items-center gap-3">
             <BackButton fallbackHref="/finance" />
             <div>
