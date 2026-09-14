@@ -30,7 +30,7 @@ import { useCurrency, useAppTranslation } from '@/hooks/useAppTranslation';
 import { cn } from '@/lib/utils';
 import type { Party } from '@/types';
 import { useRouter } from 'next/navigation';
-import { useParties, useDeleteParty } from '@/hooks/api/useParties';
+import { useParties, useDeleteParty, usePartyStats } from '@/hooks/api/useParties';
 import { getInitials } from '@/components/parties/utils';
 import { PartyDetailsAndTransactions } from '@/components/parties/PartyDetailsAndTransactions';
 import { toast } from 'sonner';
@@ -62,6 +62,8 @@ export default function PartiesPage() {
   };
 
   const { data: parties=[], isLoading } = useParties( { type: typeFilter,search:searchTerm, });
+  const {data: partyStats} = usePartyStats();
+  console.log("partyStats",partyStats)
   const router = useRouter();
 
 
@@ -88,7 +90,7 @@ export default function PartiesPage() {
                   <User className="h-5 w-5 text-blue-600" />
                 </div>
                 <div className="min-w-0">
-                  <div className="text-2xl font-bold text-gray-900 dark:text-white">{parties?.summary?.customers || 0}</div>
+                  <div className="text-2xl font-bold text-gray-900 dark:text-white">{partyStats?.customers || 0}</div>
                   <p className="text-sm text-gray-500 truncate">{t('parties.customers')}</p>
                 </div>
               </div>
@@ -101,7 +103,7 @@ export default function PartiesPage() {
                   <Building2 className="h-5 w-5 text-purple-600" />
                 </div>
                 <div className="min-w-0">
-                  <div className="text-2xl font-bold text-gray-900 dark:text-white">{parties?.summary?.suppliers || 0}</div>
+                  <div className="text-2xl font-bold text-gray-900 dark:text-white">{partyStats?.suppliers || 0}</div>
                   <p className="text-sm text-gray-500 truncate">{t('parties.suppliers')}</p>
                 </div>
               </div>
@@ -114,7 +116,7 @@ export default function PartiesPage() {
                   <Users className="h-5 w-5 text-emerald-600" />
                 </div>
                 <div className="min-w-0">
-                  <div className="text-xl font-bold text-emerald-600 truncate">{formatCurrency(parties?.summary?.totalReceivable || 0)}</div>
+                  <div className="text-xl font-bold text-emerald-600 truncate">{formatCurrency(partyStats?.totalReceivable || 0)}</div>
                   <p className="text-sm text-gray-500 truncate">{t('dashboard.receivable')}</p>
                 </div>
               </div>
@@ -127,7 +129,7 @@ export default function PartiesPage() {
                   <Users className="h-5 w-5 text-red-600" />
                 </div>
                 <div className="min-w-0">
-                  <div className="text-xl font-bold text-red-600 truncate">{formatCurrency(parties?.summary?.totalPayable || 0)}</div>
+                  <div className="text-xl font-bold text-red-600 truncate">{formatCurrency(partyStats?.totalPayable || 0)}</div>
                   <p className="text-sm text-gray-500 truncate">{t('dashboard.payable')}</p>
                 </div>
               </div>
@@ -150,7 +152,7 @@ export default function PartiesPage() {
               {/* added total count */}
               <div className="flex items-center justify-between mb-4 gap-4">
                 <h2 className="text-lg font-bold text-foreground">
-                  {isBangla ? `পার্টি (${parties?.summary?.total || 0})` : `Parties (${parties?.summary?.total || 0})`}
+                  {isBangla ? `পার্টি (${partyStats?.total || 0})` : `Parties (${partyStats?.total || 0})`}
                 </h2>
                 <Button
                   onClick={() => router.push('/parties/new')}
@@ -350,7 +352,7 @@ export default function PartiesPage() {
                                 >
                                   <Pencil className="h-3.5 w-3.5" />
                                 </Button>
-                                <Button
+                                {/* <Button
                                   variant="ghost"
                                   size="icon"
                                   className="h-7 w-7 text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 rounded-md cursor-pointer"
@@ -358,7 +360,7 @@ export default function PartiesPage() {
                                   title={isBangla ? "মুছে ফেলুন" : "Delete Party"}
                                 >
                                   <Trash2 className="h-3.5 w-3.5" />
-                                </Button>
+                                </Button> */}
                               </div>
                             </td>
                           </tr>

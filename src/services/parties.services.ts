@@ -6,6 +6,10 @@ export const createParty = async (data: Party) => {
   return res.data;
 };
 
+export const getPartyStats = async () =>{
+  const res = await client.get('/api/parties/stats')
+  return res.data
+}
 export const getParties = async (filter: { type?: 'customer' | 'supplier' | 'all',includeWalkIn?:boolean, search?: string, page?:number, limit?: number } = {}) => {
   const res = await client.get("/api/parties", { params: filter });
   return res.data;
