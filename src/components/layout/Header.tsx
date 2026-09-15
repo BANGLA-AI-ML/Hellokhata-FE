@@ -23,6 +23,7 @@ import { useMarkAsReadNotification, useNotifications, useReadAllNotifications } 
 import { cn } from '@/lib/utils';
 import { BranchSwitcher, BackButton } from '@/components/common';
 import { useGetMyFeatures } from '@/hooks/api/useFeaturesPlan';
+import Link from 'next/link';
 
 interface HeaderProps {
   onOpenCommandPalette?: () => void;
@@ -30,13 +31,13 @@ interface HeaderProps {
 }
 
 export function Header({ onOpenCommandPalette, onOpenVoice }: HeaderProps) {
-  const { user, logout, plan } = useSessionStore();
+  const { user, logout } = useSessionStore();
   const { setMobileMenuOpen, unreadNotifications } = useUiStore();
   const { t, isBangla, changeLanguage } = useAppTranslation();
   const { data: notificationsData } = useNotifications();
   
   const {data: featuresData} = useGetMyFeatures();
-  console.log('featuresData',featuresData)
+  const plan = featuresData[0].plan
   const notifications = Array.isArray(notificationsData)
     ? notificationsData
     : (Array.isArray((notificationsData as any)?.data) ? (notificationsData as any).data : []);
@@ -421,10 +422,10 @@ export function Header({ onOpenCommandPalette, onOpenVoice }: HeaderProps) {
               </a>
             </DropdownMenuItem>
             <DropdownMenuItem asChild className="cursor-pointer hover:bg-muted focus:bg-muted">
-              <a href="/settings#subscription" className="flex items-center gap-2">
+              <Link href="/plans" className="flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-primary" />
                 <span>{isBangla ? 'প্ল্যান আপগ্রেড' : 'Upgrade Plan'}</span>
-              </a>
+              </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator className="bg-border-subtle" />
             <DropdownMenuItem 

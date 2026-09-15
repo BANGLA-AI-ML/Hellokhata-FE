@@ -8,6 +8,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -32,27 +33,23 @@ import { cn } from "@/lib/utils";
 interface SaleDetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
- saleId: string;
+  saleId: string;
 }
 
 export function SaleDetailsModal({
   isOpen,
   onClose,
- saleId
+  saleId,
 }: SaleDetailsModalProps) {
   const { isBangla } = useAppTranslation();
   const { formatCurrency } = useCurrency();
   const { formatDate } = useDateFormat();
   const { data: salesData, isLoading: isSaleLoading } = useGetSaleById(saleId);
 
-
-
   const handlePrint = () => {
     toast.success(isBangla ? "প্রিন্ট হচ্ছে..." : "Connecting to printer...");
     window.print();
   };
-
- 
 
   const renderInvoiceView = () => {
     if (isSaleLoading) {
@@ -66,7 +63,7 @@ export function SaleDetailsModal({
       );
     }
 
-    const txData = salesData?.data;
+    const txData = salesData?.data || salesData;
     const party = txData?.party;
     const items = txData?.items || [];
 
@@ -74,11 +71,11 @@ export function SaleDetailsModal({
       txData?.partyName ||
       party?.name ||
       (isBangla ? "ক্যাশ কাস্টমার" : "Cash Customer");
-    const invoiceNo = txData?.invoiceNo || "—";
-    const invoiceDate = txData?.createdAt
-      ? formatDate(txData.createdAt, "long")
+    const invoiceNo = txData?.invoiceNo || saleId || "—";
+    const invoiceDate = txData?.createdAt || txData?.date
+      ? formatDate(txData.createdAt || txData.date, "long")
       : "—";
-    const paymentMode = txData?.paymentMethod || "—";
+    const paymentMode = txData?.paymentMethod || txData?.mode || "Cash";
 
     const balanceVal = party?.currentBalance ?? 0;
     const balanceText = isBangla
@@ -87,72 +84,75 @@ export function SaleDetailsModal({
 
     return (
       <div className="space-y-6">
-        {/* Profile and Meta Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm border-b border-border pb-6">
+        {/* Profile and Meta Plain Text Grid */}
+        <div className="p-4 rounded-2xl bg-muted/40 border border-border/80 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
           <div className="space-y-2">
             <div>
-              <span className="text-muted-foreground mr-2 font-medium">
-                {isBangla ? "পার্টি:" : "Party:"}
+              <span className="text-xs font-semibold text-muted-foreground block mb-0.5">
+                {isBangla ? "কাস্টমার / পার্টি:" : "Customer / Party:"}
               </span>
               <span className="font-bold text-foreground text-base">
                 {partyName}
               </span>
             </div>
-            <div>
-              <span className="text-muted-foreground mr-2 font-medium">
-                {isBangla ? "ব্যালেন্স:" : "Balance:"}
-              </span>
-              <span
-                className={cn(
-                  "font-bold font-mono",
-                  balanceVal >= 0
-                    ? "text-primary font-semibold"
-                    : "text-rose-500",
-                )}
-              >
-                {balanceText}
-              </span>
-            </div>
+            {party && (
+              <div>
+                <span className="text-xs font-semibold text-muted-foreground block mb-0.5">
+                  {isBangla ? "বর্তমান ব্যালেন্স:" : "Current Balance:"}
+                </span>
+                <span
+                  className={cn(
+                    "font-bold font-mono text-sm",
+                    balanceVal >= 0
+                      ? "text-primary font-semibold"
+                      : "text-rose-500",
+                  )}
+                >
+                  {balanceText}
+                </span>
+              </div>
+            )}
           </div>
-          <div className="text-left sm:text-right space-y-1">
+
+          <div className="text-left sm:text-right space-y-1.5">
             <div className="flex items-center sm:justify-end gap-2">
-              <span className="text-muted-foreground font-medium">
-                {isBangla ? "ইনভয়েস নং:" : "Invoice No"}
+              <span className="text-xs font-semibold text-muted-foreground">
+                {isBangla ? "ইনভয়েস নং:" : "Invoice No:"}
               </span>
-              <span className="font-bold text-foreground">#{invoiceNo}</span>
+              <span className="font-bold text-foreground font-mono">#{invoiceNo}</span>
             </div>
             <div className="flex items-center sm:justify-end gap-2">
-              <span className="text-muted-foreground font-medium">
+              <span className="text-xs font-semibold text-muted-foreground">
                 {isBangla ? "তারিখ:" : "Invoice Date:"}
               </span>
               <span className="font-bold text-foreground">{invoiceDate}</span>
             </div>
             <div className="flex items-center sm:justify-end gap-2">
-              <span className="text-muted-foreground font-medium">
+              <span className="text-xs font-semibold text-muted-foreground">
                 {isBangla ? "পেমেন্ট মোড:" : "Payment Mode:"}
               </span>
-              <span className="font-bold text-foreground uppercase">
+              <Badge variant="outline" className="font-bold uppercase text-[11px] bg-background">
                 {paymentMode}
-              </span>
+              </Badge>
             </div>
           </div>
         </div>
 
         {/* Invoice Items Table */}
-        <div className="border border-border/80 rounded-xl overflow-hidden shadow-sm">
+        <div className="border border-border/80 rounded-2xl overflow-hidden shadow-sm">
           <Table>
-            <TableHeader className="bg-muted/40 text-xs font-bold border-b border-border">
+            <TableHeader className="bg-muted/60 text-xs font-bold border-b border-border">
               <TableRow>
                 <TableHead className="w-12 py-3 px-4 text-center">
                   {isBangla ? "ক্রমিক" : "S.N."}
                 </TableHead>
                 <TableHead className="py-3 px-4">
-                  {isBangla ? "নাম" : "Name"}
+                  {isBangla ? "নাম" : "Item Name"}
                 </TableHead>
-                <TableHead className="py-3 px-2 text-right">
+                <TableHead className="py-3 px-3 text-right">
                   {isBangla ? "পরিমাণ" : "Quantity"}
                 </TableHead>
-                <TableHead className="py-3 px-2 text-right">
+                <TableHead className="py-3 px-3 text-right">
                   {isBangla ? "দর" : "Rate"}
                 </TableHead>
                 <TableHead className="py-3 px-4 text-right">
@@ -165,33 +165,34 @@ export function SaleDetailsModal({
                 <TableRow>
                   <TableCell
                     colSpan={5}
-                    className="h-20 text-center text-muted-foreground"
+                    className="h-20 text-center text-muted-foreground italic"
                   >
                     {isBangla ? "কোনো আইটেম পাওয়া যায়নি" : "No items found"}
                   </TableCell>
                 </TableRow>
               ) : (
                 items.map((item: any, idx: number) => {
-                  const price = item.unitPrice;
+                  const price = item.unitPrice || 0;
+                  const qty = item.quantity || 0;
                   return (
                     <TableRow
                       key={idx}
                       className="hover:bg-muted/10 border-b border-border/50 transition-colors"
                     >
-                      <TableCell className="text-center py-3.5 px-4 text-muted-foreground">
+                      <TableCell className="text-center py-3.5 px-4 text-muted-foreground font-mono">
                         {idx + 1}
                       </TableCell>
                       <TableCell className="font-semibold py-3.5 px-4 text-foreground">
-                        {item.itemName}
+                        {item.itemName || item.name || "—"}
                       </TableCell>
-                      <TableCell className="text-right py-3.5 px-2 font-mono font-medium">
-                        {item.quantity} {item.unit || ""}
+                      <TableCell className="text-right py-3.5 px-3 font-mono font-medium">
+                        {qty} {item.unit || ""}
                       </TableCell>
-                      <TableCell className="text-right py-3.5 px-2 font-mono text-muted-foreground">
+                      <TableCell className="text-right py-3.5 px-3 font-mono text-muted-foreground">
                         {formatCurrency(price)}
                       </TableCell>
                       <TableCell className="text-right py-3.5 px-4 font-bold text-foreground font-mono">
-                        {formatCurrency(item.quantity * price)}
+                        {formatCurrency(qty * price)}
                       </TableCell>
                     </TableRow>
                   );
@@ -202,7 +203,7 @@ export function SaleDetailsModal({
         </div>
 
         {/* Calculations / Totals */}
-        <div className="flex flex-col items-end space-y-2 pt-2 text-xs max-w-[240px] ml-auto">
+        <div className="flex flex-col items-end space-y-2 pt-2 text-xs max-w-[260px] ml-auto">
           <div className="flex justify-between w-full text-muted-foreground font-medium">
             <span>{isBangla ? "উপমোট:" : "Sub Total:"}</span>
             <span className="font-mono text-foreground font-semibold">
@@ -255,7 +256,7 @@ export function SaleDetailsModal({
       <div className="flex flex-row items-center justify-between w-full gap-4">
         <Button
           onClick={handlePrint}
-          className="h-10 bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-bold flex items-center gap-2 rounded-lg"
+          className="h-10 bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-bold flex items-center gap-1.5 rounded-xl shadow-sm"
         >
           <Printer className="h-4 w-4 shrink-0" />
           {isBangla ? "প্রিন্ট" : "Print"}
@@ -263,7 +264,7 @@ export function SaleDetailsModal({
         <Button
           variant="outline"
           onClick={onClose}
-          className="h-10 text-xs border-border"
+          className="h-10 text-xs px-5 rounded-xl border-border hover:bg-muted"
         >
           {isBangla ? "বন্ধ করুন" : "Close"}
         </Button>
@@ -272,28 +273,24 @@ export function SaleDetailsModal({
   };
 
   return (
-    <>
-      <Dialog open={isOpen} onOpenChange={(v) => !v && onClose()}>
-        <DialogContent className="w-[95%] max-w-lg md:max-w-3xl rounded-2xl p-6 overflow-hidden max-h-[90vh] flex flex-col justify-between border border-border bg-card shadow-2xl">
-          <div className="flex flex-col flex-1 min-h-0">
-            <DialogHeader className="flex flex-row items-center justify-between pb-4 border-b border-border">
-              <DialogTitle className="text-lg font-bold text-foreground">
-                {isBangla ? "বিক্রয় ইনভয়েস" : "Sales Invoice"}
-              </DialogTitle>
-            </DialogHeader>
+    <Dialog open={isOpen} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="w-[95%] max-w-lg md:max-w-3xl rounded-3xl p-6 overflow-hidden max-h-[90vh] flex flex-col justify-between border border-border bg-card shadow-2xl">
+        <div className="flex flex-col flex-1 min-h-0">
+          <DialogHeader className="flex flex-row items-center justify-between pb-4 border-b border-border">
+            <DialogTitle className="text-lg font-bold text-foreground">
+              {isBangla ? "বিক্রয় ইনভয়েস বিবরণ" : "Sales Invoice Details"}
+            </DialogTitle>
+          </DialogHeader>
 
-            <div className="py-6 overflow-y-auto max-h-[60vh] pr-1 flex-1">
-              {renderInvoiceView()}
-            </div>
+          <div className="py-5 overflow-y-auto max-h-[60vh] pr-1 flex-1">
+            {renderInvoiceView()}
           </div>
+        </div>
 
-          <DialogFooter className="pt-4 border-t border-border mt-4 shrink-0 flex items-center w-full">
-            {renderFooterButtons()}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-
-    </>
+        <DialogFooter className="pt-4 border-t border-border mt-3 shrink-0 flex items-center w-full">
+          {renderFooterButtons()}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

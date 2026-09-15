@@ -176,7 +176,7 @@ function NewSaleContent() {
     { enabled: !!selectedProductForBatch?.id }
   );
 const itemsBatches = batchesData?.batches;
-  const { data: partiesData = [] } = useParties({search:debouncedPartySearchQuery,includeWalkIn:true, page: 1, limit: 100});
+  const { data: partiesData = [] } = useParties({type:'customer',search:debouncedPartySearchQuery,includeWalkIn:true, page: 1, limit: 100});
   const { data: paymentMethods = [] } = useGetPaymentMethods();
 
   // Fetch active offers for auto-detection

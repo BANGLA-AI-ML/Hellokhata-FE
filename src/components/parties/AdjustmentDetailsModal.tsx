@@ -1,9 +1,8 @@
 // Hello Khata - Adjustment Details Modal
-// Modal to view/edit details of an adjustment transaction
+// Modal to view details of an adjustment transaction with clean plain text
 
 "use client";
 
-import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -12,16 +11,19 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import {
   Loader2,
   Calendar,
+  User,
+  ArrowUpRight,
+  ArrowDownLeft,
+  FileText,
 } from "lucide-react";
 import { useGetAdjustBalance } from "@/hooks/api/usePayments";
 import {
   useAppTranslation,
+  useCurrency,
   useDateFormat,
 } from "@/hooks/useAppTranslation";
 import { cn } from "@/lib/utils";
@@ -29,8 +31,8 @@ import { cn } from "@/lib/utils";
 interface AdjustmentDetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  id: string; // Recieve only id instead of full entry
-  party?: any; // Party object passed from parent
+  id: string;
+  party?: any;
 }
 
 export function AdjustmentDetailsModal({
@@ -40,31 +42,12 @@ export function AdjustmentDetailsModal({
   party,
 }: AdjustmentDetailsModalProps) {
   const { isBangla } = useAppTranslation();
+  const { formatCurrency } = useCurrency();
   const { formatDate } = useDateFormat();
-
-  // Form states
-  const [amount, setAmount] = useState("");
-  const [remarks, setRemarks] = useState("");
-  const [date, setDate] = useState<Date>(new Date());
-  const [adjustmentType, setAdjustmentType] = useState<'add_balance' | 'reduce_balance'>('add_balance');
 
   // Fetch adjustment data
   const { data: adjustResponse, isLoading: isAdjustLoading } = useGetAdjustBalance(id);
   const entry = adjustResponse?.data;
-  console.log('entry',adjustResponse)
-
-  // Reset form states when entry changes
-  useEffect(() => {
-    if (entry) {
-      setAmount(Math.abs(entry.amount).toString());
-      setRemarks(entry.remarks || entry.description || "");
-      setDate(entry.date ? new Date(entry.date) : new Date());
-      const isReduce = entry.type === 'reduce_balance' || entry.amount < 0;
-      setAdjustmentType(isReduce ? 'reduce_balance' : 'add_balance');
-    }
-  }, [entry, isOpen]);
-
-
 
   const renderAdjustmentView = () => {
     if (isAdjustLoading) {
@@ -88,106 +71,105 @@ export function AdjustmentDetailsModal({
       );
     }
 
+    const isReduce = entry.type === 'reduce_balance' || entry.amount < 0;
+    const amountVal = Math.abs(entry.amount || 0);
+    const partyName = entry.partyName || party?.name || "—";
+    const dateVal = entry.date ? new Date(entry.date) : (entry.createdAt ? new Date(entry.createdAt) : new Date());
+    const remarks = entry.remarks || entry.description || entry.notes || "";
+
     return (
       <div className="space-y-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label
-              htmlFor="tx-amount"
-              className="text-xs font-bold text-muted-foreground uppercase tracking-wider"
-            >
+        {/* Main Amount & Type Card */}
+        <div className="p-5 rounded-2xl bg-muted/40 border border-border/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
               {isBangla ? "সমন্বয় পরিমাণ" : "Adjustment Amount"}
-            </Label>
-            <div className="relative">
-              <span className="absolute left-3 top-2.5 text-muted-foreground font-semibold">
-                Tk.
-              </span>
-              <Input
-                id="tx-amount"
-                type="number"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                disabled
-                className="h-11 pl-10 text-sm border-border focus:border-primary font-bold font-mono transition-colors duration-200 bg-zinc-100 dark:bg-zinc-900/60 text-zinc-400 dark:text-zinc-500 border-zinc-200 dark:border-zinc-800 opacity-60 cursor-not-allowed"
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-              {isBangla ? "তারিখ" : "As of Date"}
-            </Label>
-            <div className="relative">
-              <Input
-                type="text"
-                value={formatDate(date, "long")}
-                disabled
-                className="h-11 text-sm bg-zinc-100 dark:bg-zinc-900/60 border-border font-medium text-zinc-400 dark:text-zinc-500 opacity-60 cursor-not-allowed"
-              />
-              <Calendar className="absolute right-3 top-3 h-5 w-5 text-muted-foreground" />
-            </div>
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-            {isBangla ? "সমন্বয়ের ধরন" : "Adjustment Type"}
-          </Label>
-          <div className="flex gap-2">
-            {[
-              { value: 'add_balance', label: isBangla ? 'বৃদ্ধি করুন (Increase)' : 'Increase Balance' },
-              { value: 'reduce_balance', label: isBangla ? 'হ্রাস করুন (Decrease)' : 'Decrease Balance' },
-            ].map((dir) => (
-              <button
-                key={dir.value}
-                type="button"
-                disabled
-                onClick={() => setAdjustmentType(dir.value as 'add_balance' | 'reduce_balance')}
+            </span>
+            <div className="flex items-baseline gap-2">
+              <span
                 className={cn(
-                  'flex items-center justify-center gap-2 px-3 py-1.5 rounded-md border text-xs font-medium transition-all cursor-not-allowed opacity-70',
-                  adjustmentType === dir.value
-                    ? dir.value === 'add_balance'
-                      ? 'border-primary/50 bg-primary/10 text-primary font-bold'
-                      : 'border-red-500/50 bg-red-500/10 text-red-500 font-bold'
-                    : 'border-border bg-transparent text-muted-foreground hover:border-primary/50'
+                  "text-3xl font-extrabold font-mono tracking-tight",
+                  isReduce ? "text-rose-500" : "text-emerald-500 dark:text-emerald-400"
                 )}
               >
-                {dir.label}
-              </button>
-            ))}
+                {isReduce ? "-" : "+"} {formatCurrency(amountVal)}
+              </span>
+            </div>
+          </div>
+
+          <Badge
+            variant="outline"
+            className={cn(
+              "px-3.5 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5",
+              isReduce
+                ? "bg-rose-500/10 text-rose-500 border-rose-500/30"
+                : "bg-emerald-500/10 text-emerald-500 border-emerald-500/30"
+            )}
+          >
+            {isReduce ? (
+              <>
+                <ArrowDownLeft className="w-3.5 h-3.5" />
+                <span>{isBangla ? "ব্যালেন্স হ্রাস (Decrease)" : "Decrease Balance"}</span>
+              </>
+            ) : (
+              <>
+                <ArrowUpRight className="w-3.5 h-3.5" />
+                <span>{isBangla ? "ব্যালেন্স বৃদ্ধি (Increase)" : "Increase Balance"}</span>
+              </>
+            )}
+          </Badge>
+        </div>
+
+        {/* Transaction Metadata Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-2xl border border-border/60 bg-card/60">
+          <div className="space-y-1">
+            <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+              <User className="w-3.5 h-3.5 text-primary" />
+              {isBangla ? "পার্টির নাম:" : "Party Name:"}
+            </span>
+            <p className="text-sm font-bold text-foreground">
+              {partyName}
+            </p>
+          </div>
+
+          <div className="space-y-1">
+            <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+              <Calendar className="w-3.5 h-3.5 text-primary" />
+              {isBangla ? "তারিখ:" : "As of Date:"}
+            </span>
+            <p className="text-sm font-bold text-foreground font-mono">
+              {formatDate(dateVal, "long")}
+            </p>
           </div>
         </div>
 
+        {/* Remarks Box */}
         <div className="space-y-2">
-          <Label
-            htmlFor="tx-remarks"
-            className="text-xs font-bold text-muted-foreground uppercase tracking-wider"
-          >
-            {isBangla ? "মন্তব্য" : "Remarks"}
-          </Label>
-          <Textarea
-            id="tx-remarks"
-            value={remarks}
-            onChange={(e) => setRemarks(e.target.value)}
-            disabled
-            placeholder={
-              isBangla ? "এখানে মন্তব্য লিখুন..." : "Enter remarks here..."
-            }
-            className="text-sm border-border resize-none h-24 transition-colors duration-200 bg-zinc-100 dark:bg-zinc-900/60 text-zinc-400 dark:text-zinc-500 border-zinc-200 dark:border-zinc-800 opacity-60 cursor-not-allowed"
-          />
+          <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+            <FileText className="w-3.5 h-3.5 text-primary" />
+            {isBangla ? "মন্তব্য ও কারণ:" : "Remarks & Reason:"}
+          </span>
+          <div className="p-4 rounded-2xl bg-muted/30 border border-border/60 text-sm text-foreground leading-relaxed min-h-[64px]">
+            {remarks ? (
+              <p className="whitespace-pre-wrap">{remarks}</p>
+            ) : (
+              <p className="text-xs text-muted-foreground italic">
+                {isBangla ? "কোনো মন্তব্য লেখা হয়নি" : "No remarks provided"}
+              </p>
+            )}
+          </div>
         </div>
       </div>
     );
   };
 
   const renderFooterButtons = () => {
-    if (isAdjustLoading || !entry) return null;
     return (
-      <div className="flex flex-row items-center justify-end w-full gap-4">
+      <div className="flex items-center justify-end w-full">
         <Button
           variant="outline"
           onClick={onClose}
-          className="h-10 text-xs border-border"
+          className="h-10 text-xs px-5 rounded-xl border-border hover:bg-muted"
         >
           {isBangla ? "বন্ধ করুন" : "Close"}
         </Button>
@@ -196,24 +178,22 @@ export function AdjustmentDetailsModal({
   };
 
   return (
-    <>
-      <Dialog open={isOpen} onOpenChange={(v) => !v && onClose()}>
-        <DialogContent className="w-[95%] max-w-lg md:max-w-3xl rounded-2xl p-6 overflow-hidden max-h-[90vh] flex flex-col justify-between border border-border bg-card shadow-2xl">
-          <div className="flex flex-col flex-1 min-h-0">
-            <DialogHeader className="flex flex-row items-center justify-between pb-4 border-b border-border">
-              <DialogTitle className="text-lg font-bold text-foreground">
-                {isBangla ? "ব্যালেন্স সমন্বয়" : "Adjust Balance"}
-              </DialogTitle>
-            </DialogHeader>
-            <div className="py-6 overflow-y-auto max-h-[60vh] pr-1 flex-1">
-              {renderAdjustmentView()}
-            </div>
+    <Dialog open={isOpen} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="w-[95%] max-w-lg md:max-w-xl rounded-3xl p-6 overflow-hidden max-h-[90vh] flex flex-col justify-between border border-border bg-card shadow-2xl">
+        <div className="flex flex-col flex-1 min-h-0">
+          <DialogHeader className="flex flex-row items-center justify-between pb-4 border-b border-border">
+            <DialogTitle className="text-lg font-bold text-foreground">
+              {isBangla ? "ব্যালেন্স সমন্বয় বিবরণ" : "Adjustment Details"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-5 overflow-y-auto max-h-[60vh] pr-1 flex-1">
+            {renderAdjustmentView()}
           </div>
-          <DialogFooter className="pt-4 border-t border-border mt-4 shrink-0 flex items-center w-full">
-            {renderFooterButtons()}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
+        </div>
+        <DialogFooter className="pt-4 border-t border-border mt-3 shrink-0 flex items-center w-full">
+          {renderFooterButtons()}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

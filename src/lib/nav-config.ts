@@ -1,6 +1,3 @@
-// Hello Khata - Navigation Configuration
-// হ্যালো খাতা - নেভিগেশন কনফিগারেশন
-
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -99,17 +96,17 @@ export const navGroups: NavItem[] = [
     labelBn: "ক্রয়",
     icon: Truck,
     submenu: [
+        {
+        page: "/purchases/new",
+        icon: Plus,
+        labelKey: "New Purchase",
+        labelBn: "নতুন ক্রয়",
+      },
       {
         page: "/purchases",
         icon: Truck,
         labelKey: "Purchase List",
         labelBn: "ক্রয় তালিকা",
-      },
-      {
-        page: "/purchases/new",
-        icon: Plus,
-        labelKey: "New Purchase",
-        labelBn: "নতুন ক্রয়",
       },
       {
         page: "/purchases/returns",
@@ -125,16 +122,16 @@ export const navGroups: NavItem[] = [
     icon: Users,
     submenu: [
       {
-        page: "/parties",
-        icon: Users,
-        labelKey: "Parties List",
-        labelBn: "পার্টি তালিকা",
-      },
-      {
         page: "/parties/new",
         icon: Plus,
         labelKey: "New Party",
         labelBn: "নতুন পার্টি",
+      },
+            {
+        page: "/parties",
+        icon: Users,
+        labelKey: "Parties List",
+        labelBn: "পার্টি তালিকা",
       },
       {
         page: "/parties/payment-in",
@@ -156,16 +153,16 @@ export const navGroups: NavItem[] = [
     icon: Package,
     submenu: [
       {
-        page: "/inventory",
-        icon: Package,
-        labelKey: "Inventory List",
-        labelBn: "ইনভেন্টরি তালিকা",
-      },
-      {
         page: "/inventory/new",
         icon: Plus,
         labelKey: "New Item",
         labelBn: "নতুন পণ্য",
+      },
+      {
+        page: "/inventory",
+        icon: Package,
+        labelKey: "Inventory List",
+        labelBn: "ইনভেন্টরি তালিকা",
       },
       {
         page: "/inventory/batches",
