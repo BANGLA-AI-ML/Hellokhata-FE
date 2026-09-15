@@ -106,6 +106,12 @@ export const navGroups: NavItem[] = [
         labelBn: "ক্রয় তালিকা",
       },
       {
+        page: "/purchases/new",
+        icon: Plus,
+        labelKey: "New Purchase",
+        labelBn: "নতুন ক্রয়",
+      },
+      {
         page: "/purchases/returns",
         icon: RotateCcw,
         labelKey: "Purchase Return",
@@ -123,6 +129,12 @@ export const navGroups: NavItem[] = [
         icon: Users,
         labelKey: "Parties List",
         labelBn: "পার্টি তালিকা",
+      },
+      {
+        page: "/parties/new",
+        icon: Plus,
+        labelKey: "New Party",
+        labelBn: "নতুন পার্টি",
       },
       {
         page: "/parties/payment-in",
@@ -148,6 +160,12 @@ export const navGroups: NavItem[] = [
         icon: Package,
         labelKey: "Inventory List",
         labelBn: "ইনভেন্টরি তালিকা",
+      },
+      {
+        page: "/inventory/new",
+        icon: Plus,
+        labelKey: "New Item",
+        labelBn: "নতুন পণ্য",
       },
       {
         page: "/inventory/batches",
@@ -228,12 +246,12 @@ export const navGroups: NavItem[] = [
         labelKey: "Payables",
         labelBn: "প্রদেয় হিসাব",
       },
-      {
-        page: "/finance/loans",
-        icon: Coins,
-        labelKey: "Loan",
-        labelBn: "ঋণ",
-      },
+      // {
+      //   page: "/finance/loans",
+      //   icon: Coins,
+      //   labelKey: "Loan",
+      //   labelBn: "ঋণ",
+      // },
       {
         page: "/finance/banks",
         icon: Wallet,
@@ -243,8 +261,8 @@ export const navGroups: NavItem[] = [
       {
         page: "/finance/settings",
         icon: Settings,
-        labelKey: "Settings",
-        labelBn: "সেটিংস",
+        labelKey: "VAT/TAX Settings",
+        labelBn: "ভ্যাট/ট্যাক্স সেটিংস",
       },
     ],
   },
@@ -265,30 +283,30 @@ export const navGroups: NavItem[] = [
         labelKey: "Employees",
         labelBn: "কর্মীবৃন্দ",
       },
-      {
-        page: "/hrm/attendance",
-        icon: CalendarCheck,
-        labelKey: "Attendance",
-        labelBn: "উপস্থিতি",
-      },
-      {
-        page: "/hrm/leave",
-        icon: CalendarOff,
-        labelKey: "Leave",
-        labelBn: "ছুটি",
-      },
-      {
-        page: "/hrm/payroll",
-        icon: Banknote,
-        labelKey: "Payroll",
-        labelBn: "বেতন",
-      },
-      {
-        page: "/hrm/attendance-summary",
-        icon: FileClock,
-        labelKey: "Attendance Summary",
-        labelBn: "উপস্থিতি সারসংক্ষেপ",
-      },
+      // {
+      //   page: "/hrm/attendance",
+      //   icon: CalendarCheck,
+      //   labelKey: "Attendance",
+      //   labelBn: "উপস্থিতি",
+      // },
+      // {
+      //   page: "/hrm/leave",
+      //   icon: CalendarOff,
+      //   labelKey: "Leave",
+      //   labelBn: "ছুটি",
+      // },
+      // {
+      //   page: "/hrm/payroll",
+      //   icon: Banknote,
+      //   labelKey: "Payroll",
+      //   labelBn: "বেতন",
+      // },
+      // {
+      //   page: "/hrm/attendance-summary",
+      //   icon: FileClock,
+      //   labelKey: "Attendance Summary",
+      //   labelBn: "উপস্থিতি সারসংক্ষেপ",
+      // },
       {
         page: "/hrm/roles-permissions",
         icon: Shield,
@@ -381,7 +399,7 @@ export const bottomNavItems = [
     isPro: true,
   },
   {
-    page: "/settings/profile",
+    page: "/settings",
     icon: Settings,
     labelKey: "Settings",
     labelBn: "সেটিংস",
