@@ -36,8 +36,8 @@ export function Header({ onOpenCommandPalette, onOpenVoice }: HeaderProps) {
   const { t, isBangla, changeLanguage } = useAppTranslation();
   const { data: notificationsData } = useNotifications();
   
-  const {data: featuresData} = useGetMyFeatures();
-  const plan = featuresData[0].plan
+  const {data: featuresData,isLoading:isLoadingFeatures} = useGetMyFeatures();
+  const plan = !isLoadingFeatures && featuresData[0]?.plan
   const notifications = Array.isArray(notificationsData)
     ? notificationsData
     : (Array.isArray((notificationsData as any)?.data) ? (notificationsData as any).data : []);
