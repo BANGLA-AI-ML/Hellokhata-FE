@@ -9,6 +9,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -32,6 +33,10 @@ import {
   Trash2,
   Edit,
   Printer,
+  Calendar,
+  CreditCard,
+  Building2,
+  FileSpreadsheet,
 } from "lucide-react";
 import { useGetPurchaseById } from "@/hooks/api/usePurchases";
 import { useRouter } from "next/navigation";
@@ -46,13 +51,13 @@ import { cn } from "@/lib/utils";
 interface PurchaseDetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
- purchaseId: string
+  purchaseId: string;
 }
 
 export function PurchaseDetailsModal({
   isOpen,
   onClose,
-  purchaseId
+  purchaseId,
 }: PurchaseDetailsModalProps) {
   const { isBangla } = useAppTranslation();
   const { formatCurrency } = useCurrency();
@@ -91,18 +96,7 @@ export function PurchaseDetailsModal({
     window.print();
   };
 
-  const getModalTitle = () => {
-    const txData = purchaseData?.data;
-    return (
-      (isBangla ? "ক্রয় বিল" : "Purchase Bill") +
-      ` #${txData?.invoiceNo || refId}`
-    );
-  };
-
   const renderInvoiceView = () => {
-    const txData = purchaseData?.data;
-    const items = txData?.items || [];
-
     if (isPurchaseLoading) {
       return (
         <div className="flex flex-col items-center justify-center py-12">
@@ -114,13 +108,17 @@ export function PurchaseDetailsModal({
       );
     }
 
+    const txData = purchaseData?.data || purchaseData;
+    const party = txData?.party;
+    const items = txData?.items || [];
+
     const partyName =
-      txData?.partyName || txData?.party?.name || party?.name || "—";
-    const invoiceNo = txData?.invoiceNo || refId || "—";
-    const invoiceDate = txData?.createdAt
-      ? formatDate(txData.createdAt, "long")
-      : formatDate(entry.date, "long");
-    const paymentMode = txData?.paymentMethod || "—";
+      txData?.partyName || party?.name || (isBangla ? "সাপ্লায়ার" : "Supplier");
+    const invoiceNo = txData?.invoiceNo || purchaseId || "—";
+    const invoiceDate = txData?.createdAt || txData?.date
+      ? formatDate(txData.createdAt || txData.date, "long")
+      : "—";
+    const paymentMode = txData?.paymentMethod || txData?.mode || "Cash";
 
     const balanceVal = party?.currentBalance ?? 0;
     const balanceText = isBangla
@@ -129,73 +127,76 @@ export function PurchaseDetailsModal({
 
     return (
       <div className="space-y-6">
-        {/* Profile and Meta Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm border-b border-border pb-6">
+        {/* Profile and Meta Plain Text Grid */}
+        <div className="p-4 rounded-2xl bg-muted/40 border border-border/80 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
           <div className="space-y-2">
             <div>
-              <span className="text-muted-foreground mr-2 font-medium">
-                {isBangla ? "পার্টি:" : "Party:"}
+              <span className="text-xs font-semibold text-muted-foreground block mb-0.5">
+                {isBangla ? "সাপ্লায়ার / পার্টি:" : "Supplier / Party:"}
               </span>
               <span className="font-bold text-foreground text-base">
                 {partyName}
               </span>
             </div>
-            <div>
-              <span className="text-muted-foreground mr-2 font-medium">
-                {isBangla ? "ব্যালেন্স:" : "Balance:"}
-              </span>
-              <span
-                className={cn(
-                  "font-bold font-mono",
-                  balanceVal >= 0
-                    ? "text-primary font-semibold"
-                    : "text-rose-500",
-                )}
-              >
-                {balanceText}
-              </span>
-            </div>
+            {party && (
+              <div>
+                <span className="text-xs font-semibold text-muted-foreground block mb-0.5">
+                  {isBangla ? "বর্তমান ব্যালেন্স:" : "Current Balance:"}
+                </span>
+                <span
+                  className={cn(
+                    "font-bold font-mono text-sm",
+                    balanceVal >= 0
+                      ? "text-primary font-semibold"
+                      : "text-rose-500",
+                  )}
+                >
+                  {balanceText}
+                </span>
+              </div>
+            )}
           </div>
-          <div className="text-left sm:text-right space-y-1">
+
+          <div className="text-left sm:text-right space-y-1.5">
             <div className="flex items-center sm:justify-end gap-2">
-              <span className="text-muted-foreground font-medium">
-                {isBangla ? "ইনভয়েস নং:" : "Invoice No"}
+              <span className="text-xs font-semibold text-muted-foreground">
+                {isBangla ? "বিল / ইনভয়েস নং:" : "Bill / Invoice No:"}
               </span>
-              <span className="font-bold text-foreground">#{invoiceNo}</span>
+              <span className="font-bold text-foreground font-mono">#{invoiceNo}</span>
             </div>
             <div className="flex items-center sm:justify-end gap-2">
-              <span className="text-muted-foreground font-medium">
-                {isBangla ? "তারিখ:" : "Invoice Date:"}
+              <span className="text-xs font-semibold text-muted-foreground">
+                {isBangla ? "বিল তারিখ:" : "Bill Date:"}
               </span>
               <span className="font-bold text-foreground">{invoiceDate}</span>
             </div>
             <div className="flex items-center sm:justify-end gap-2">
-              <span className="text-muted-foreground font-medium">
+              <span className="text-xs font-semibold text-muted-foreground">
                 {isBangla ? "পেমেন্ট মোড:" : "Payment Mode:"}
               </span>
-              <span className="font-bold text-foreground uppercase">
+              <Badge variant="outline" className="font-bold uppercase text-[11px] bg-background">
                 {paymentMode}
-              </span>
+              </Badge>
             </div>
           </div>
         </div>
 
         {/* Invoice Items Table */}
-        <div className="border border-border/80 rounded-xl overflow-hidden shadow-sm">
+        <div className="border border-border/80 rounded-2xl overflow-hidden shadow-sm">
           <Table>
-            <TableHeader className="bg-muted/40 text-xs font-bold border-b border-border">
+            <TableHeader className="bg-muted/60 text-xs font-bold border-b border-border">
               <TableRow>
                 <TableHead className="w-12 py-3 px-4 text-center">
                   {isBangla ? "ক্রমিক" : "S.N."}
                 </TableHead>
                 <TableHead className="py-3 px-4">
-                  {isBangla ? "নাম" : "Name"}
+                  {isBangla ? "আইটেমের নাম" : "Item Name"}
                 </TableHead>
-                <TableHead className="py-3 px-2 text-right">
+                <TableHead className="py-3 px-3 text-right">
                   {isBangla ? "পরিমাণ" : "Quantity"}
                 </TableHead>
-                <TableHead className="py-3 px-2 text-right">
-                  {isBangla ? "দর" : "Rate"}
+                <TableHead className="py-3 px-3 text-right">
+                  {isBangla ? "ক্রয় দর" : "Unit Cost"}
                 </TableHead>
                 <TableHead className="py-3 px-4 text-right">
                   {isBangla ? "মোট" : "Amount"}
@@ -207,33 +208,34 @@ export function PurchaseDetailsModal({
                 <TableRow>
                   <TableCell
                     colSpan={5}
-                    className="h-20 text-center text-muted-foreground"
+                    className="h-20 text-center text-muted-foreground italic"
                   >
                     {isBangla ? "কোনো আইটেম পাওয়া যায়নি" : "No items found"}
                   </TableCell>
                 </TableRow>
               ) : (
                 items.map((item: any, idx: number) => {
-                  const price = item.unitCost;
+                  const price = item.unitCost || item.unitPrice || 0;
+                  const qty = item.quantity || 0;
                   return (
                     <TableRow
                       key={idx}
                       className="hover:bg-muted/10 border-b border-border/50 transition-colors"
                     >
-                      <TableCell className="text-center py-3.5 px-4 text-muted-foreground">
+                      <TableCell className="text-center py-3.5 px-4 text-muted-foreground font-mono">
                         {idx + 1}
                       </TableCell>
                       <TableCell className="font-semibold py-3.5 px-4 text-foreground">
-                        {item.itemName}
+                        {item.itemName || item.name || "—"}
                       </TableCell>
-                      <TableCell className="text-right py-3.5 px-2 font-mono font-medium">
-                        {item.quantity} {item.unit || ""}
+                      <TableCell className="text-right py-3.5 px-3 font-mono font-medium">
+                        {qty} {item.unit || ""}
                       </TableCell>
-                      <TableCell className="text-right py-3.5 px-2 font-mono text-muted-foreground">
+                      <TableCell className="text-right py-3.5 px-3 font-mono text-muted-foreground">
                         {formatCurrency(price)}
                       </TableCell>
                       <TableCell className="text-right py-3.5 px-4 font-bold text-foreground font-mono">
-                        {formatCurrency(item.quantity * price)}
+                        {formatCurrency(qty * price)}
                       </TableCell>
                     </TableRow>
                   );
@@ -244,7 +246,7 @@ export function PurchaseDetailsModal({
         </div>
 
         {/* Calculations / Totals */}
-        <div className="flex flex-col items-end space-y-2 pt-2 text-xs max-w-[240px] ml-auto">
+        <div className="flex flex-col items-end space-y-2 pt-2 text-xs max-w-[260px] ml-auto">
           <div className="flex justify-between w-full text-muted-foreground font-medium">
             <span>{isBangla ? "উপমোট:" : "Sub Total:"}</span>
             <span className="font-mono text-foreground font-semibold">
@@ -268,13 +270,13 @@ export function PurchaseDetailsModal({
             </div>
           )}
           <div className="flex justify-between w-full text-sm font-bold border-t border-border/80 pt-2 text-foreground">
-            <span>{isBangla ? "মোট পরিমাণ:" : "Total Amount:"}</span>
+            <span>{isBangla ? "মোট বিল:" : "Total Bill:"}</span>
             <span className="font-mono text-base font-extrabold">
               {formatCurrency(txData?.total || 0)}
             </span>
           </div>
           <div className="flex justify-between w-full text-primary font-bold">
-            <span>{isBangla ? "পরিশোধিত পরিমাণ:" : "Paid Amount:"}</span>
+            <span>{isBangla ? "পরিশোধিত:" : "Paid Amount:"}</span>
             <span className="font-mono">
               {formatCurrency(txData?.paidAmount || 0)}
             </span>
@@ -297,28 +299,27 @@ export function PurchaseDetailsModal({
       <div className="flex flex-row items-center justify-between w-full gap-4">
         <Button
           variant="outline"
-          size="icon"
           onClick={handleDeleteClick}
-          className="h-10 shrink-0 text-red-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 border-border"
+          className="h-10 text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 border-border text-xs rounded-xl"
         >
-          Delete
-          <Trash2 className="h-4 w-4" />
+          <Trash2 className="h-4 w-4 mr-1.5" />
+          {isBangla ? "মুছুন" : "Delete"}
         </Button>
         <div className="flex gap-2">
           <Button
             variant="outline"
-            size="icon"
             onClick={handleEditRedirect}
-            className="h-10 w-10 shrink-0 text-foreground hover:bg-muted border-border"
+            className="h-10 text-foreground hover:bg-muted border-border text-xs rounded-xl flex items-center gap-1.5"
           >
             <Edit className="h-4 w-4" />
+            {isBangla ? "সম্পাদনা" : "Edit"}
           </Button>
           <Button
             onClick={handlePrint}
-            className="h-10 bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-bold flex items-center gap-2 rounded-lg"
+            className="h-10 bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-bold flex items-center gap-1.5 rounded-xl shadow-sm"
           >
-            <Printer className="h-4 w-4 shrink-0" />
-            {isBangla ? "প্রিন্টারে সংযোগ করুন" : "Connect to Printer"}
+            <Printer className="h-4 w-4" />
+            {isBangla ? "প্রিন্ট" : "Print"}
           </Button>
         </div>
       </div>
@@ -328,20 +329,20 @@ export function PurchaseDetailsModal({
   return (
     <>
       <Dialog open={isOpen} onOpenChange={(v) => !v && onClose()}>
-        <DialogContent className="w-[95%] max-w-lg md:max-w-3xl rounded-2xl p-6 overflow-hidden max-h-[90vh] flex flex-col justify-between border border-border bg-card shadow-2xl">
+        <DialogContent className="w-[95%] max-w-lg md:max-w-3xl rounded-3xl p-6 overflow-hidden max-h-[90vh] flex flex-col justify-between border border-border bg-card shadow-2xl">
           <div className="flex flex-col flex-1 min-h-0">
             <DialogHeader className="flex flex-row items-center justify-between pb-4 border-b border-border">
               <DialogTitle className="text-lg font-bold text-foreground">
-                {getModalTitle()}
+                {isBangla ? "ক্রয় বিল বিবরণ" : "Purchase Bill Details"}
               </DialogTitle>
             </DialogHeader>
 
-            <div className="py-6 overflow-y-auto max-h-[60vh] pr-1 flex-1">
+            <div className="py-5 overflow-y-auto max-h-[60vh] pr-1 flex-1">
               {renderInvoiceView()}
             </div>
           </div>
 
-          <DialogFooter className="pt-4 border-t border-border mt-4 shrink-0 flex items-center w-full">
+          <DialogFooter className="pt-4 border-t border-border mt-3 shrink-0 flex items-center w-full">
             {renderFooterButtons()}
           </DialogFooter>
         </DialogContent>
@@ -349,26 +350,26 @@ export function PurchaseDetailsModal({
 
       {/* Delete Confirmation Alert */}
       <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-        <AlertDialogContent className="w-[320px]">
+        <AlertDialogContent className="w-[95%] max-w-sm rounded-2xl">
           <AlertDialogHeader>
             <AlertDialogTitle>
               {isBangla ? "লেনদেন মুছবেন?" : "Delete Transaction?"}
             </AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogDescription className="text-xs">
               {isBangla
                 ? "এই কাজ পূর্বাবস্থায় ফেরানো যাবে না। লেনদেনটি স্থায়ীভাবে মুছে ফেলা হবে।"
                 : "This action cannot be undone. This transaction will be permanently deleted."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>
+            <AlertDialogCancel className="text-xs rounded-xl">
               {isBangla ? "বাতিল" : "Cancel"}
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleConfirmDelete}
-              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground text-xs rounded-xl"
             >
-              <Trash2 className="h-4 w-4 mr-2" />
+              <Trash2 className="h-4 w-4 mr-1.5" />
               {isBangla ? "মুছুন" : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>

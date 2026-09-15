@@ -1,9 +1,8 @@
 // Hello Khata - Opening Balance Details Modal
-// Modal to view/edit details of an opening balance transaction
+// Modal to view details of an opening balance transaction with clean plain text
 
 "use client";
 
-import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -12,15 +11,19 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import {
   Calendar,
+  User,
+  ArrowUpRight,
+  ArrowDownLeft,
+  FileText,
+  DollarSign,
 } from "lucide-react";
 import { useGetOpeningBalance } from "@/hooks/api/usePayments";
 import {
   useAppTranslation,
+  useCurrency,
   useDateFormat,
 } from "@/hooks/useAppTranslation";
 import { cn } from "@/lib/utils";
@@ -28,8 +31,8 @@ import { cn } from "@/lib/utils";
 interface OpeningBalanceDetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  entry: any; // PartyLedgerEntry
-  party?: any; // Party object passed from parent
+  entry: any;
+  party?: any;
 }
 
 export function OpeningBalanceDetailsModal({
@@ -39,162 +42,126 @@ export function OpeningBalanceDetailsModal({
   party,
 }: OpeningBalanceDetailsModalProps) {
   const { isBangla } = useAppTranslation();
+  const { formatCurrency } = useCurrency();
   const { formatDate } = useDateFormat();
-
-  // Form states
-  const [amount, setAmount] = useState("");
-  const [remarks, setRemarks] = useState("");
-  const [date, setDate] = useState<Date>(new Date());
-  const [balanceType, setBalanceType] = useState<'receive' | 'give'>('receive');
 
   const partyId = party?.id || entry?.partyId;
   const { data: openingBalanceResponse } = useGetOpeningBalance(partyId);
 
-  // Reset form states when entry or openingBalanceResponse changes
-  useEffect(() => {
-    const ob = openingBalanceResponse?.data || openingBalanceResponse;
-    if (ob && (typeof ob.amount === 'number' || ob.amount != null)) {
-      setAmount(Math.abs(Number(ob.amount)).toString());
-      setRemarks(ob.remarks || ob.notes || "");
-      setDate(ob.date || ob.createdAt ? new Date(ob.date || ob.createdAt) : new Date());
-      setBalanceType(ob.balanceDirection);
-    } 
-  }, [entry, openingBalanceResponse, isOpen]);
+  const ob = openingBalanceResponse?.data || openingBalanceResponse || entry;
 
-  if (!entry) return null;
+  const rawAmount = ob?.amount != null ? Number(ob.amount) : (entry?.amount != null ? Number(entry.amount) : 0);
+  const amountVal = Math.abs(rawAmount);
+  const balanceDirection = ob?.balanceDirection || entry?.balanceDirection || (rawAmount >= 0 ? 'receive' : 'give');
+  const isReceive = balanceDirection === 'receive';
+  const partyName = party?.name || ob?.partyName || entry?.partyName || "—";
+  const dateVal = ob?.date || ob?.createdAt || entry?.date || entry?.createdAt ? new Date(ob?.date || ob?.createdAt || entry?.date || entry?.createdAt) : new Date();
+  const remarks = ob?.remarks || ob?.notes || entry?.remarks || entry?.notes || "";
 
-
-
-  const renderAdjustmentView = () => {
-    return (
-      <div className="space-y-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label
-              htmlFor="tx-amount"
-              className="text-xs font-bold text-muted-foreground uppercase tracking-wider"
-            >
-              {isBangla ? "প্রারম্ভিক পরিমাণ" : "Opening Amount"}
-            </Label>
-            <div className="relative">
-              <span className="absolute left-3 top-2.5 text-muted-foreground font-semibold">
-                Tk.
-              </span>
-              <Input
-                id="tx-amount"
-                type="number"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                disabled
-                className="h-11 pl-10 text-sm border-border focus:border-primary font-bold font-mono transition-colors duration-200 bg-zinc-100 dark:bg-zinc-900/60 text-zinc-400 dark:text-zinc-500 border-zinc-200 dark:border-zinc-800 opacity-60 cursor-not-allowed"
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-              {isBangla ? "তারিখ" : "As of Date"}
-            </Label>
-            <div className="relative">
-              <Input
-                type="text"
-                value={formatDate(date, "long")}
-                disabled
-                className="h-11 text-sm bg-zinc-100 dark:bg-zinc-900/60 border-border font-medium text-zinc-400 dark:text-zinc-500 opacity-60 cursor-not-allowed"
-              />
-              <Calendar className="absolute right-3 top-3 h-5 w-5 text-muted-foreground" />
-            </div>
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-            {isBangla ? "ব্যালেন্সের ধরন" : "Balance Direction"}
-          </Label>
-          <div className="flex gap-2">
-            {[
-              { value: 'receive', label: isBangla ? 'পাওনা (To Receive)' : 'To Receive' },
-              { value: 'give', label: isBangla ? 'দেনা (To Give)' : 'To Give' },
-            ].map((dir) => (
-              <button
-                key={dir.value}
-                type="button"
-                disabled
-                onClick={() => setBalanceType(dir.value as 'receive' | 'give')}
-                className={cn(
-                  'flex items-center justify-center gap-2 px-3 py-1.5 rounded-md border text-xs font-medium transition-all cursor-not-allowed opacity-70',
-                  balanceType === dir.value
-                    ? dir.value === 'receive'
-                      ? 'border-primary/50 bg-primary/10 text-primary font-bold'
-                      : 'border-red-500/50 bg-red-500/10 text-red-500 font-bold'
-                    : 'border-border bg-transparent text-muted-foreground hover:border-primary/50'
-                )}
-              >
-                {dir.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label
-            htmlFor="tx-remarks"
-            className="text-xs font-bold text-muted-foreground uppercase tracking-wider"
-          >
-            {isBangla ? "মন্তব্য" : "Remarks"}
-          </Label>
-          <Textarea
-            id="tx-remarks"
-            value={remarks}
-            onChange={(e) => setRemarks(e.target.value)}
-            disabled
-            placeholder={
-              isBangla ? "এখানে মন্তব্য লিখুন..." : "Enter remarks here..."
-            }
-            className="text-sm border-border resize-none h-24 transition-colors duration-200 bg-zinc-100 dark:bg-zinc-900/60 text-zinc-400 dark:text-zinc-500 border-zinc-200 dark:border-zinc-800 opacity-60 cursor-not-allowed"
-          />
-        </div>
-      </div>
-    );
-  };
-
-  const renderFooterButtons = () => {
-    return (
-      <div className="flex flex-row items-center justify-end w-full gap-4">
-        <Button
-          variant="outline"
-          onClick={onClose}
-          className="h-10 text-xs border-border"
-        >
-          {isBangla ? "বন্ধ করুন" : "Close"}
-        </Button>
-      </div>
-    );
-  };
+  if (!entry && !ob) return null;
 
   return (
-    <>
-      <Dialog open={isOpen} onOpenChange={(v) => !v && onClose()}>
-        <DialogContent className="w-[95%] max-w-lg md:max-w-3xl rounded-2xl p-6 overflow-hidden max-h-[90vh] flex flex-col justify-between border border-border bg-card shadow-2xl">
-          <div className="flex flex-col flex-1 min-h-0">
-            <DialogHeader className="flex flex-row items-center justify-between pb-4 border-b border-border">
-              <DialogTitle className="text-lg font-bold text-foreground">
-                {isBangla ? "প্রারম্ভিক ব্যালেন্স" : "Opening Balance"}
-              </DialogTitle>
-            </DialogHeader>
+    <Dialog open={isOpen} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="w-[95%] max-w-lg md:max-w-xl rounded-3xl p-6 overflow-hidden max-h-[90vh] flex flex-col justify-between border border-border bg-card shadow-2xl">
+        <div className="flex flex-col flex-1 min-h-0">
+          <DialogHeader className="flex flex-row items-center justify-between pb-4 border-b border-border">
+            <DialogTitle className="text-lg font-bold text-foreground">
+              {isBangla ? "প্রারম্ভিক ব্যালেন্স বিবরণ" : "Opening Balance Details"}
+            </DialogTitle>
+          </DialogHeader>
 
-            <div className="py-6 overflow-y-auto max-h-[60vh] pr-1 flex-1">
-              {renderAdjustmentView()}
+          <div className="py-5 overflow-y-auto max-h-[60vh] pr-1 flex-1 space-y-6">
+            {/* Amount & Direction Card */}
+            <div className="p-5 rounded-2xl bg-muted/40 border border-border/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div>
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
+                  {isBangla ? "প্রারম্ভিক ব্যালেন্স" : "Opening Amount"}
+                </span>
+                <span
+                  className={cn(
+                    "text-3xl font-extrabold font-mono tracking-tight",
+                    isReceive ? "text-emerald-500 dark:text-emerald-400" : "text-rose-500"
+                  )}
+                >
+                  {formatCurrency(amountVal)}
+                </span>
+              </div>
+
+              <Badge
+                variant="outline"
+                className={cn(
+                  "px-3.5 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5",
+                  isReceive
+                    ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30"
+                    : "bg-rose-500/10 text-rose-500 border-rose-500/30"
+                )}
+              >
+                {isReceive ? (
+                  <>
+                    <ArrowUpRight className="w-3.5 h-3.5" />
+                    <span>{isBangla ? "পাওনা (To Receive)" : "To Receive"}</span>
+                  </>
+                ) : (
+                  <>
+                    <ArrowDownLeft className="w-3.5 h-3.5" />
+                    <span>{isBangla ? "দেনা (To Give)" : "To Give"}</span>
+                  </>
+                )}
+              </Badge>
+            </div>
+
+            {/* Metadata Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-2xl border border-border/60 bg-card/60">
+              <div className="space-y-1">
+                <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                  <User className="w-3.5 h-3.5 text-primary" />
+                  {isBangla ? "পার্টির নাম:" : "Party Name:"}
+                </span>
+                <p className="text-sm font-bold text-foreground">
+                  {partyName}
+                </p>
+              </div>
+
+              <div className="space-y-1">
+                <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5 text-primary" />
+                  {isBangla ? "হিসাব শুরুর তারিখ:" : "As of Date:"}
+                </span>
+                <p className="text-sm font-bold text-foreground font-mono">
+                  {formatDate(dateVal, "long")}
+                </p>
+              </div>
+            </div>
+
+            {/* Remarks Box */}
+            <div className="space-y-2">
+              <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                <FileText className="w-3.5 h-3.5 text-primary" />
+                {isBangla ? "মন্তব্য:" : "Remarks / Notes:"}
+              </span>
+              <div className="p-4 rounded-2xl bg-muted/30 border border-border/60 text-sm text-foreground leading-relaxed min-h-[64px]">
+                {remarks ? (
+                  <p className="whitespace-pre-wrap">{remarks}</p>
+                ) : (
+                  <p className="text-xs text-muted-foreground italic">
+                    {isBangla ? "কোনো মন্তব্য লেখা হয়নি" : "No remarks provided"}
+                  </p>
+                )}
+              </div>
             </div>
           </div>
+        </div>
 
-          <DialogFooter className="pt-4 border-t border-border mt-4 shrink-0 flex items-center w-full">
-            {renderFooterButtons()}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-
-    </>
+        <DialogFooter className="pt-4 border-t border-border mt-3 shrink-0 flex items-center justify-end w-full">
+          <Button
+            variant="outline"
+            onClick={onClose}
+            className="h-10 text-xs px-5 rounded-xl border-border hover:bg-muted"
+          >
+            {isBangla ? "বন্ধ করুন" : "Close"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
