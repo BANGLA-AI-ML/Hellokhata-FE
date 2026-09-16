@@ -37,9 +37,9 @@ export function Header({ onOpenCommandPalette, onOpenVoice }: HeaderProps) {
   const { data: notificationsData } = useNotifications();
   
   const {data: featuresData,isLoading:isLoadingFeatures} = useGetMyFeatures();
-  const plan = !isLoadingFeatures && featuresData[0]?.plan
+  const plan =  featuresData && featuresData?.plan
   const notifications = Array.isArray(notificationsData)
-    ? notificationsData
+    ? notificationsData 
     : (Array.isArray((notificationsData as any)?.data) ? (notificationsData as any).data : []);
 
   const [localNotifications, setLocalNotifications] = useState<any[]>([]);
@@ -416,11 +416,7 @@ export function Header({ onOpenCommandPalette, onOpenVoice }: HeaderProps) {
                 <span>{t('settings.profile')}</span>
               </a>
             </DropdownMenuItem>
-            <DropdownMenuItem asChild className="cursor-pointer hover:bg-muted focus:bg-muted">
-              <a href="/settings#business" className="flex items-center gap-2">
-                <span>{t('settings.businessProfile')}</span>
-              </a>
-            </DropdownMenuItem>
+            
             <DropdownMenuItem asChild className="cursor-pointer hover:bg-muted focus:bg-muted">
               <Link href="/plans" className="flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-primary" />
