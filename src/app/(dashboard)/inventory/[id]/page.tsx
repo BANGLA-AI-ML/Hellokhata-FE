@@ -96,9 +96,7 @@ function ProductDetailsContent() {
         onArchive={() => alert("Archive product triggered")}
         onDelete={() => alert("Delete product triggered")}
       />
-
-      {/* 3. Tabbed Navigation System */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full space-y-6">
+      {/* <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full space-y-6">
         <div className="overflow-x-auto pb-1">
           <TabsList className="bg-muted/60 p-1 rounded-2xl h-auto flex gap-1 w-max min-w-full sm:w-auto">
             <TabsTrigger
@@ -135,12 +133,10 @@ function ProductDetailsContent() {
           </TabsList>
         </div>
 
-        {/* Tab Content 1: Overview */}
         <TabsContent value="overview" className="space-y-6">
           <ProductInformationCard product={product} />
         </TabsContent>
 
-        {/* Tab Content 2: Batches */}
         <TabsContent value="batches">
           <BatchTable
             batches={mockBatches}
@@ -151,12 +147,9 @@ function ProductDetailsContent() {
           />
         </TabsContent>
 
-        {/* Tab Content 3: Branches */}
         <TabsContent value="branches">
           <BranchStockTable branches={mockBranchStocks} />
         </TabsContent>
-
-        {/* Tab Content 8: Documents */}
         <TabsContent value="documents">
           <Card className="border border-border/80 rounded-2xl bg-card shadow-sm p-8 text-center space-y-3">
             <FileText className="h-10 w-10 text-muted-foreground mx-auto" />
@@ -166,7 +159,7 @@ function ProductDetailsContent() {
             </p>
           </Card>
         </TabsContent>
-      </Tabs>
+      </Tabs> */}
     </div>
   );
 }

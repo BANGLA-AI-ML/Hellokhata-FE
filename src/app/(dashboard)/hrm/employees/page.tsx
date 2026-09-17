@@ -276,17 +276,17 @@ export default function EmployeesPage() {
         subtitle={isBangla ? 'কর্মচারী তালিকা পরিচালনা করুন — যোগ, সম্পাদনা ও প্রোফাইল দেখুন।' : 'Manage your workforce — add, edit and view employee profiles.'}
         subtitleBn="কর্মচারী তালিকা পরিচালনা করুন — যোগ, সম্পাদনা ও প্রোফাইল দেখুন।"
         icon={Users}
-        breadcrumbs={[{ label: isBangla ? 'কর্মচারী' : 'Employees', labelBn: 'কর্মচারী' }]}
+        // breadcrumbs={[{ label: isBangla ? 'কর্মচারী' : 'Employees', labelBn: 'কর্মচারী' }]}
         actions={
           <>
-            <Button
+            {/* <Button
               variant="outline"
               size="default"
               leftIcon={<Download className="h-4 w-4" />}
               onClick={() => toast.success(isBangla ? 'রপ্তানি শুরু হয়েছে' : 'Export started')}
             >
               <span className="hidden sm:inline">{isBangla ? 'রপ্তানি' : 'Export'}</span>
-            </Button>
+            </Button> */}
             <Button leftIcon={<UserPlus className="h-4 w-4" />} onClick={openAdd}>
               {isBangla ? 'কর্মচারী যোগ করুন' : 'Add Employee'}
             </Button>
@@ -295,7 +295,7 @@ export default function EmployeesPage() {
       />
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <HrmStatCard
           title="Total Employees"
           titleBn="মোট কর্মচারী"
@@ -337,7 +337,7 @@ export default function EmployeesPage() {
           captionBn="পরীক্ষামূলক সময়ে"
           index={3}
         />
-      </div>
+      </div> */}
 
       {/* Toolbar */}
       <Card padding="lg">

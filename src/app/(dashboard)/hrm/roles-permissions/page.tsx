@@ -43,7 +43,6 @@ import {
   Banknote,
   Calendar,
   Layers,
-  History,
   FileText,
   ChevronDown,
   ChevronRight,
@@ -91,12 +90,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from '@/components/ui/tabs';
+
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { toast } from 'sonner';
 import { useAppTranslation, useCurrency } from '@/hooks/useAppTranslation';
@@ -745,6 +739,80 @@ export function computeEffectivePermissions(
   return basePermissions;
 }
 
+// ─── TABLE HELPER FUNCTIONS ──────────────────────────────────────────────────
+
+function getModuleIcon(idOrCode: string) {
+  switch (idOrCode) {
+    case 'mod_dashboard':
+    case 'DASHBOARD':
+      return <LayoutGrid className="w-3 h-3 text-sky-400 shrink-0" />;
+    case 'mod_sales':
+    case 'SALES_POS':
+      return <ShoppingCart className="w-3 h-3 text-emerald-400 shrink-0" />;
+    case 'mod_purchases':
+    case 'PURCHASES':
+      return <Truck className="w-3 h-3 text-amber-400 shrink-0" />;
+    case 'mod_inventory':
+    case 'INVENTORY':
+      return <Package className="w-3 h-3 text-indigo-400 shrink-0" />;
+    case 'mod_parties':
+    case 'PARTIES':
+      return <Users className="w-3 h-3 text-blue-400 shrink-0" />;
+    case 'mod_finance':
+    case 'FINANCE':
+      return <Landmark className="w-3 h-3 text-cyan-400 shrink-0" />;
+    case 'mod_hrm':
+    case 'HRM':
+      return <Briefcase className="w-3 h-3 text-pink-400 shrink-0" />;
+    case 'mod_reports':
+    case 'REPORTS':
+      return <FileSpreadsheet className="w-3 h-3 text-purple-400 shrink-0" />;
+    case 'mod_quotations':
+    case 'QUOTATIONS':
+      return <FileText className="w-3 h-3 text-teal-400 shrink-0" />;
+    case 'mod_settings':
+    case 'SETTINGS':
+      return <Settings className="w-3 h-3 text-slate-400 shrink-0" />;
+    default:
+      return <Layers className="w-3 h-3 text-muted-foreground shrink-0" />;
+  }
+}
+
+function getModuleShortName(m: ERPModuleDefinition, isBangla: boolean) {
+  if (isBangla) {
+    if (m.id === 'mod_dashboard') return 'ড্যাশবোর্ড';
+    if (m.id === 'mod_sales') return 'বিক্রয়';
+    if (m.id === 'mod_purchases') return 'ক্রয়';
+    if (m.id === 'mod_inventory') return 'ইনভেন্টরি';
+    if (m.id === 'mod_parties') return 'পার্টি';
+    if (m.id === 'mod_finance') return 'হিসাববিজ্ঞান';
+    if (m.id === 'mod_hrm') return 'এইচআরএম';
+    if (m.id === 'mod_reports') return 'রিপোর্ট';
+    if (m.id === 'mod_quotations') return 'কোটেশন';
+    if (m.id === 'mod_settings') return 'সেটিংস';
+    return m.nameBn;
+  }
+  if (m.id === 'mod_dashboard') return 'Dashboard';
+  if (m.id === 'mod_sales') return 'Sales';
+  if (m.id === 'mod_purchases') return 'Purchases';
+  if (m.id === 'mod_inventory') return 'Inventory';
+  if (m.id === 'mod_parties') return 'Parties';
+  if (m.id === 'mod_finance') return 'Finance';
+  if (m.id === 'mod_hrm') return 'HRM';
+  if (m.id === 'mod_reports') return 'Reports';
+  if (m.id === 'mod_quotations') return 'Quotations';
+  if (m.id === 'mod_settings') return 'Settings';
+  return m.name.split(' ')[0];
+}
+
+function getStaffInitials(name: string) {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 1) {
+    return parts[0].slice(0, 2).toUpperCase();
+  }
+  return name.slice(0, 2).toUpperCase();
+}
+
 // ─── MAIN REACT COMPONENT ────────────────────────────────────────────────────
 
 export default function UserAccessControlPage() {
@@ -755,15 +823,24 @@ export default function UserAccessControlPage() {
   const [baseRoles, setBaseRoles] = useState<BaseRoleDefinition[]>(INITIAL_BASE_ROLES);
   const [auditLogs, setAuditLogs] = useState<AccessAuditEntry[]>(INITIAL_AUDIT_LOGS);
 
-  // Active Main Tab
-  const [mainTab, setMainTab] = useState<'users' | 'roles' | 'audit'>('users');
+
 
   // Table Filters & Search
   const [searchQuery, setSearchQuery] = useState('');
+  const [roleTypeFilter, setRoleTypeFilter] = useState<'all' | 'system' | 'custom'>('all');
   const [branchFilter, setBranchFilter] = useState('all');
   const [roleFilter, setRoleFilter] = useState('all');
   const [accessLevelFilter, setAccessLevelFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+
+  // Role Edit & Add Modal State
+  const [editingRole, setEditingRole] = useState<BaseRoleDefinition | null>(null);
+  const [editingRolePermissions, setEditingRolePermissions] = useState<string[]>([]);
+  const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
+
+  // View Staff Modal State
+  const [viewStaffRole, setViewStaffRole] = useState<BaseRoleDefinition | null>(null);
+  const [isStaffModalOpen, setIsStaffModalOpen] = useState(false);
 
   // Selected User for Manage Access Modal
   const [activeUser, setActiveUser] = useState<UserAccessProfile | null>(null);
@@ -844,6 +921,116 @@ export default function UserAccessControlPage() {
       return matchQuery && matchBranch && matchRole && matchAccess && matchStatus;
     });
   }, [users, searchQuery, branchFilter, roleFilter, accessLevelFilter, statusFilter]);
+
+  // Filtered Roles
+  const filteredRoles = useMemo(() => {
+    return baseRoles.filter((r) => {
+      const q = searchQuery.toLowerCase().trim();
+      const matchQuery =
+        !q ||
+        r.name.toLowerCase().includes(q) ||
+        r.nameBn.toLowerCase().includes(q) ||
+        r.description.toLowerCase().includes(q) ||
+        r.descriptionBn.toLowerCase().includes(q);
+
+      const matchType =
+        roleTypeFilter === 'all' ||
+        (roleTypeFilter === 'system' && r.isSystemProtected) ||
+        (roleTypeFilter === 'custom' && !r.isSystemProtected);
+
+      const matchStatus = statusFilter === 'all' || statusFilter === 'active';
+
+      return matchQuery && matchType && matchStatus;
+    });
+  }, [baseRoles, searchQuery, roleTypeFilter, statusFilter]);
+
+  const handleOpenAddRole = () => {
+    const newRole: BaseRoleDefinition = {
+      id: `role-custom-${Date.now()}`,
+      name: '',
+      nameBn: '',
+      description: '',
+      descriptionBn: '',
+      isSystemProtected: false,
+      color: '#3b82f6',
+      defaultDataScope: 'assigned_branches',
+      defaultBranchMode: 'selected',
+      permissionIds: [],
+    };
+    setEditingRole(newRole);
+    setEditingRolePermissions([]);
+    setIsRoleModalOpen(true);
+  };
+
+  const handleEditRole = (role: BaseRoleDefinition) => {
+    setEditingRole({ ...role });
+    setEditingRolePermissions([...role.permissionIds]);
+    setIsRoleModalOpen(true);
+  };
+
+  const handleToggleRolePermission = (permId: string) => {
+    setEditingRolePermissions((prev) =>
+      prev.includes(permId) ? prev.filter((p) => p !== permId) : [...prev, permId]
+    );
+  };
+
+  const handleToggleAllModulePermissions = (module: ERPModuleDefinition, enable: boolean) => {
+    const modPermIds = module.permissions.map((p) => p.id);
+    if (enable) {
+      setEditingRolePermissions((prev) => Array.from(new Set([...prev, ...modPermIds])));
+    } else {
+      setEditingRolePermissions((prev) => prev.filter((p) => !modPermIds.includes(p)));
+    }
+  };
+
+  const handleSaveRole = () => {
+    if (!editingRole) return;
+    if (!editingRole.name.trim()) {
+      toast.error(isBangla ? 'অনুগ্রহ করে রোলের নাম লিখুন।' : 'Please enter role name.');
+      return;
+    }
+    const updatedRole: BaseRoleDefinition = {
+      ...editingRole,
+      permissionIds: editingRolePermissions,
+    };
+    setBaseRoles((prev) => {
+      const exists = prev.some((r) => r.id === editingRole.id);
+      if (exists) {
+        return prev.map((r) => (r.id === editingRole.id ? updatedRole : r));
+      } else {
+        return [...prev, updatedRole];
+      }
+    });
+    setIsRoleModalOpen(false);
+    toast.success(
+      isBangla
+        ? `রোল "${updatedRole.name}" সফলভাবে সংরক্ষিত হয়েছে!`
+        : `Role "${updatedRole.name}" saved successfully!`
+    );
+  };
+
+  const handleDeleteRole = (role: BaseRoleDefinition) => {
+    if (role.isSystemProtected) {
+      toast.error(isBangla ? 'সিস্টেম রোল মুছে ফেলা সম্ভব নয়!' : 'System-protected roles cannot be deleted!');
+      return;
+    }
+    const hasAssignedStaff = users.some((u) => u.baseRoleId === role.id);
+    if (hasAssignedStaff) {
+      toast.error(
+        isBangla
+          ? 'এই রোলে কর্মী নিযুক্ত রয়েছে। আগে কর্মীদের ভূমিকা পরিবর্তন করুন।'
+          : 'Staff members are assigned to this role. Please reassign them first.'
+      );
+      return;
+    }
+    setBaseRoles((prev) => prev.filter((r) => r.id !== role.id));
+    toast.success(isBangla ? `রোল "${role.name}" মুছে ফেলা হয়েছে!` : `Role "${role.name}" deleted!`);
+  };
+
+  const handleViewStaff = (role: BaseRoleDefinition) => {
+    setViewStaffRole(role);
+    setIsStaffModalOpen(true);
+  };
 
   // ─── MANAGE ACCESS HANDLERS ────────────────────────────────────────────────
 
@@ -1251,612 +1438,494 @@ export default function UserAccessControlPage() {
   return (
     <div className="space-y-6 pb-20">
       {/* ─── Top Header & Primary Navigation ──────────────────────────────── */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 border-b border-border pb-5">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 pb-4">
         <div>
-          {/* Breadcrumb */}
-          <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground mb-1.5">
-            <span>Settings</span>
-            <span>/</span>
-            <span>Access Control</span>
-            <span>/</span>
-            <span className="text-foreground">Users & Permissions</span>
-          </div>
-
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground flex items-center gap-2.5">
             <ShieldCheck className="w-7 h-7 text-primary" />
-            <span>{isBangla ? 'ব্যবহারকারী ও প্রবেশাধিকার নিয়ন্ত্রণ' : 'Users & Access Control'}</span>
+            <span>{isBangla ? 'রোল ও পারমিশন' : 'Roles & Permissions'}</span>
           </h1>
 
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">
             {isBangla
-              ? 'কর্মচারীদের শাখা প্রবেশাধিকার, মডিউল অনুমতি, ডেটা দৃশ্যমানতা এবং রোল ওভাররাইড পরিচালনা করুন।'
-              : 'Manage individual employee access, branch restrictions, role inheritance, and granular permission overrides.'}
+              ? 'ব্যবসার ধরন অনুযায়ী রোলে অনুমতি কাস্টমাইজ করুন এবং নির্দিষ্ট ব্যবহারকারীদের জন্য ডেটা অ্যাক্সেস নিয়ন্ত্রণ করুন।'
+              : 'Customize roles with business-specific permissions and control data access for individual users.'}
           </p>
         </div>
 
         {/* Action Buttons */}
         <div className="flex flex-wrap items-center gap-2.5">
           <Button
-            variant="outline"
-            onClick={() => setMainTab('audit')}
-            className={cn(
-              'rounded-xl border-border text-xs font-semibold h-10 hover:bg-muted cursor-pointer',
-              mainTab === 'audit' && 'bg-primary/10 border-primary/30 text-primary'
-            )}
-          >
-            <History className="w-4 h-4 mr-1.5 text-primary" />
-            {isBangla ? 'অ্যাক্সেস হিস্ট্রি' : 'Access Activity'}
-          </Button>
-
-          <Button
-            variant="outline"
-            onClick={() => setMainTab('roles')}
-            className={cn(
-              'rounded-xl border-border text-xs font-semibold h-10 hover:bg-muted cursor-pointer',
-              mainTab === 'roles' && 'bg-primary/10 border-primary/30 text-primary'
-            )}
-          >
-            <Crown className="w-4 h-4 mr-1.5 text-amber-500" />
-            {isBangla ? 'ভূমিকা টেমপ্লেট' : 'Manage Roles'}
-          </Button>
-
-          <Button
-            onClick={() => {
-              setNewUserStep(1);
-              setIsAddUserModalOpen(true);
-            }}
+            onClick={handleOpenAddRole}
             className="rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-bold h-10 shadow-sm cursor-pointer"
           >
-            <UserPlus className="w-4 h-4 mr-1.5" />
-            {isBangla ? '+ নতুন ব্যবহারকারী যোগ' : '+ Add User'}
+            <Plus className="w-4 h-4 mr-1.5" />
+            {isBangla ? 'নতুন রোল যোগ' : 'Add Role'}
           </Button>
         </div>
       </div>
 
-      {/* ─── Compact Access Overview Metrics Cards ────────────────────────── */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
-        <div className="p-4 rounded-2xl bg-card border border-border/80 shadow-xs flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold">
-            <Users className="w-5 h-5" />
+      {/* ─── ROLES & PERMISSIONS TABLE ────────────────────────────────────── */}
+      <div className="space-y-4 pt-1">
+        {/* Search & Filter Toolbar */}
+        <div className="p-3.5 rounded-2xl bg-card border border-border shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="relative flex-1">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder={
+                isBangla
+                  ? 'রোলের নাম বা বিবরণ দিয়ে খুঁজুন...'
+                  : 'Search roles by name or description...'
+              }
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 h-10 rounded-xl text-xs bg-background border-border"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
-          <div>
-            <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
-              {isBangla ? 'মোট ব্যবহারকারী' : 'Total Users'}
-            </span>
-            <span className="text-xl font-extrabold text-foreground font-mono">{totalUsersCount}</span>
+
+          {/* Filter Dropdowns */}
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Role Type Filter */}
+            <select
+              value={roleTypeFilter}
+              onChange={(e) => setRoleTypeFilter(e.target.value as any)}
+              className="h-10 px-3 rounded-xl border border-border bg-background text-xs font-medium text-foreground cursor-pointer focus:outline-none"
+            >
+              <option value="all">{isBangla ? 'সকল ভূমিকা (All Roles)' : 'All Roles'}</option>
+              <option value="system">{isBangla ? 'সিস্টেম রোল (System Roles)' : 'System Roles'}</option>
+              <option value="custom">{isBangla ? 'কাস্টম রোল (Custom Roles)' : 'Custom Roles'}</option>
+            </select>
+
+            {/* Status Filter */}
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="h-10 px-3 rounded-xl border border-border bg-background text-xs font-medium text-foreground cursor-pointer focus:outline-none"
+            >
+              <option value="all">{isBangla ? 'সকল স্ট্যাটাস (All Status)' : 'All Status'}</option>
+              <option value="active">{isBangla ? 'সক্রিয় (Active)' : 'Active'}</option>
+              <option value="inactive">{isBangla ? 'নিষ্ক্রিয় (Inactive)' : 'Inactive'}</option>
+            </select>
+
+            {(searchQuery || roleTypeFilter !== 'all' || statusFilter !== 'all') && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setSearchQuery('');
+                  setRoleTypeFilter('all');
+                  setStatusFilter('all');
+                }}
+                className="text-xs text-muted-foreground hover:text-foreground h-10 px-2.5 rounded-xl cursor-pointer"
+              >
+                <RotateCcw className="w-3.5 h-3.5 mr-1" />
+                {isBangla ? 'রিসেট' : 'Reset'}
+              </Button>
+            )}
           </div>
         </div>
 
-        <div className="p-4 rounded-2xl bg-card border border-border/80 shadow-xs flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-500 flex items-center justify-center font-bold">
-            <Crown className="w-5 h-5" />
-          </div>
-          <div>
-            <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
-              {isBangla ? 'পূর্ণ অ্যাক্সেস' : 'Full Access'}
-            </span>
-            <span className="text-xl font-extrabold text-foreground font-mono">{fullAccessCount}</span>
-          </div>
-        </div>
+        {/* Roles Table */}
+        <div className="rounded-2xl bg-card border border-border shadow-xs overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="bg-muted/30 border-b border-border text-muted-foreground font-semibold tracking-wider uppercase text-[11px]">
+                  <th className="py-3.5 px-4 font-semibold text-muted-foreground">{isBangla ? 'রোলের নাম' : 'ROLE NAME'}</th>
+                  <th className="py-3.5 px-4 font-semibold text-muted-foreground">{isBangla ? 'মডিউল ও পারমিশন' : 'MODULES & PERMISSIONS'}</th>
+                  <th className="py-3.5 px-4 font-semibold text-muted-foreground">{isBangla ? 'স্ট্যাটাস' : 'STATUS'}</th>
+                  <th className="py-3.5 px-4 font-semibold text-muted-foreground">{isBangla ? 'নিয়োজিত কর্মী' : 'ASSIGNED USERS'}</th>
+                  <th className="py-3.5 px-4 font-semibold text-muted-foreground text-right">{isBangla ? 'অ্যাকশন' : 'ACTIONS'}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/60">
+                {filteredRoles.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="py-12 text-center text-muted-foreground">
+                      <Shield className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                      <p className="font-semibold text-sm">
+                        {isBangla ? 'কোনো রোল পাওয়া যায়নি' : 'No roles found matching filter criteria'}
+                      </p>
+                      <p className="text-xs mt-1">
+                        {isBangla ? 'অনুগ্রহ করে ফিল্টার বা সার্চ পরিবর্তন করুন।' : 'Try resetting your search query or filters.'}
+                      </p>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredRoles.map((role) => {
+                    const assignedUsers = users.filter((u) => u.baseRoleId === role.id);
+                    const coveredModules = ERP_MODULES.filter((m) =>
+                      m.permissions.some((p) => role.permissionIds.includes(p.id))
+                    );
+                    const firstUser = assignedUsers[0];
+                    const initials = firstUser ? getStaffInitials(firstUser.name) : 'NA';
 
-        <div className="p-4 rounded-2xl bg-card border border-border/80 shadow-xs flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center font-bold">
-            <ShieldAlert className="w-5 h-5" />
-          </div>
-          <div>
-            <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
-              {isBangla ? 'সীমাবদ্ধ প্রবেশাধিকার' : 'Restricted Users'}
-            </span>
-            <span className="text-xl font-extrabold text-foreground font-mono">{restrictedCount}</span>
-          </div>
-        </div>
+                    return (
+                      <tr key={role.id} className="hover:bg-muted/20 transition-colors">
+                        {/* 1. ROLE NAME */}
+                        <td className="py-4 px-4 align-middle">
+                          <div className="flex items-center gap-3">
+                            <div
+                              className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 shadow-xs"
+                              style={{ backgroundColor: role.color }}
+                            >
+                              <Crown className="w-4 h-4 text-white" />
+                            </div>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-sm text-foreground">
+                                  {isBangla ? role.nameBn : role.name}
+                                </span>
 
-        <div className="p-4 rounded-2xl bg-card border border-border/80 shadow-xs flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center font-bold">
-            <Building2 className="w-5 h-5" />
-          </div>
-          <div>
-            <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
-              {isBangla ? 'মাল্টি-ব্রাঞ্চ ইউজার' : 'Multi-Branch'}
-            </span>
-            <span className="text-xl font-extrabold text-foreground font-mono">{multiBranchCount}</span>
-          </div>
-        </div>
+                              </div>
+                              <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5 truncate">
+                                {isBangla ? role.descriptionBn : role.description}
+                              </p>
+                            </div>
+                          </div>
+                        </td>
 
-        <div className="p-4 rounded-2xl bg-card border border-border/80 shadow-xs flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-muted text-muted-foreground flex items-center justify-center font-bold">
-            <UserX className="w-5 h-5" />
-          </div>
-          <div>
-            <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
-              {isBangla ? 'অনির্ধারিত' : 'Unassigned'}
-            </span>
-            <span className="text-xl font-extrabold text-foreground font-mono">{unassignedCount}</span>
+                        {/* 2. MODULES & PERMISSIONS */}
+                        <td className="py-4 px-4 align-middle">
+                          <div className="flex flex-col gap-1.5">
+                            <div className="font-bold text-xs text-foreground flex items-center gap-1.5">
+                              <span>
+                                {coveredModules.length} / {ERP_MODULES.length} {isBangla ? 'মডিউল' : 'Modules'}
+                              </span>
+                              <span className="text-muted-foreground/60 font-normal">•</span>
+                              <span>
+                                {role.permissionIds.length} {isBangla ? 'অনুমতি' : 'Permissions'}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              {coveredModules.slice(0, 3).map((m) => (
+                                <span
+                                  key={m.id}
+                                  className="inline-flex items-center gap-1 px-1 py-1 rounded-md text-[11px] font-medium bg-muted/40 text-foreground/85 border border-border/50"
+                                >
+                                  {getModuleIcon(m.id)}
+                                  <span>{getModuleShortName(m, isBangla)}</span>
+                                </span>
+                              ))}
+                              {coveredModules.length > 3 && (
+                                <span className="inline-flex items-center justify-center  py-0.5 rounded-md text-[10px] leading-tight font-medium bg-muted/40 text-muted-foreground border border-border/50">
+                                  <span>+{coveredModules.length - 3} {isBangla ? 'আরো' : 'More'}</span>
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* 3. STATUS */}
+                        <td className="py-4 px-4 align-middle">
+                          <div className="flex flex-col gap-0.5">
+                            <div className="flex items-center gap-1.5 font-bold text-xs text-foreground">
+                              <span
+                                className={cn(
+                                  "w-2 h-2 rounded-full shrink-0",
+                                  role.isSystemProtected ? "bg-purple-500" : "bg-emerald-500"
+                                )}
+                              />
+                              <span>
+                                {isBangla
+                                  ? role.isSystemProtected
+                                    ? 'Active (Protected)'
+                                    : 'Active (Custom)'
+                                  : role.isSystemProtected
+                                  ? 'Active (Protected)'
+                                  : 'Active (Custom)'}
+                              </span>
+                            </div>
+                            {/* <span className="text-xs text-muted-foreground">
+                              {role.defaultDataScope === 'entire_business'
+                                ? (isBangla ? 'Entire Business' : 'Entire Business')
+                                : role.defaultDataScope === 'assigned_branches'
+                                ? (isBangla ? 'Assigned Branches' : 'Assigned Branches')
+                                : role.defaultDataScope === 'own_records'
+                                ? (isBangla ? 'Own Records' : 'Own Records')
+                                : (isBangla ? 'Own Department' : 'Own Department')}
+                            </span> */}
+                          </div>
+                        </td>
+
+                        {/* 4. ASSIGNED USERS */}
+                        <td className="py-4 px-4 align-middle">
+                          <div className="flex flex-col gap-0.5">
+                            <div className="flex items-center gap-1.5">
+                              {/* <div className="w-5 h-5 rounded-full bg-blue-500/20 text-blue-400 font-bold text-[10px] flex items-center justify-center shrink-0">
+                                {initials}
+                              </div> */}
+                              <span className="font-bold text-xs text-foreground">
+                                {assignedUsers.length} {isBangla ? 'staff' : 'staff'}
+                              </span>
+                            </div>
+                            {/* <span className="text-xs text-muted-foreground line-clamp-1">
+                              {firstUser
+                                ? (isBangla ? firstUser.nameBn || firstUser.name : firstUser.name)
+                                : (isBangla ? 'Unassigned' : 'Unassigned')}
+                              {assignedUsers.length > 1 && ` +${assignedUsers.length - 1}`}
+                            </span> */}
+                          </div>
+                        </td>
+
+                        {/* 5. ACTIONS */}
+                        <td className="py-4 px-4 align-middle text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleViewStaff(role)}
+                              className="h-8 px-3 rounded-full border-border/80 hover:border-border bg-background/50 hover:bg-muted/50 text-xs font-medium text-foreground flex items-center gap-1.5 cursor-pointer"
+                            >
+                              <Eye className="w-3.5 h-3.5 text-sky-400" />
+                              <span>{isBangla ? 'View' : 'View'}</span>
+                            </Button>
+
+                            <Button
+                              size="sm"
+                              onClick={() => handleEditRole(role)}
+                              className="h-8 px-3.5 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium flex items-center gap-1.5 cursor-pointer shadow-xs"
+                            >
+                              <Edit2 className="w-3.5 h-3.5 text-white" />
+                              <span>{isBangla ? 'Edit' : 'Edit'}</span>
+                            </Button>
+
+                             <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleDeleteRole(role)}
+                                className="h-8 w-8 p-0 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer"
+                                title={isBangla ? 'মুছে ফেলুন' : 'Delete Role'}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
 
-      {/* ─── Main Tabs: Users List / Roles Blueprints / Activity Log ─────── */}
-      <Tabs value={mainTab} onValueChange={(v) => setMainTab(v as any)} className="w-full">
-        <div className="flex items-center justify-between border-b border-border">
-          <TabsList className="bg-transparent h-11 p-0 gap-6">
-            <TabsTrigger
-              value="users"
-              className="relative h-11 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground text-xs sm:text-sm font-bold text-muted-foreground px-1"
-            >
-              <Users className="w-4 h-4 mr-2" />
-              {isBangla ? 'ব্যবহারকারী তালিকা' : 'Employee Access Table'}
-              <Badge variant="secondary" className="ml-2 rounded-full text-[10px] px-1.5 py-0 h-4">
-                {users.length}
-              </Badge>
-            </TabsTrigger>
-
-            <TabsTrigger
-              value="roles"
-              className="relative h-11 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground text-xs sm:text-sm font-bold text-muted-foreground px-1"
-            >
-              <Crown className="w-4 h-4 mr-2 text-amber-500" />
-              {isBangla ? 'রোল টেমপ্লেট ও ব্লুপ্রিন্ট' : 'Role Templates'}
-              <Badge variant="secondary" className="ml-2 rounded-full text-[10px] px-1.5 py-0 h-4">
-                {baseRoles.length}
-              </Badge>
-            </TabsTrigger>
-
-            <TabsTrigger
-              value="audit"
-              className="relative h-11 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground text-xs sm:text-sm font-bold text-muted-foreground px-1"
-            >
-              <History className="w-4 h-4 mr-2 text-primary" />
-              {isBangla ? 'অডিট হিস্ট্রি' : 'Audit Activity Log'}
-            </TabsTrigger>
-          </TabsList>
-        </div>
-
-        {/* ─── TAB 1: USERS & ACCESS CONTROL TABLE ──────────────────────────── */}
-        <TabsContent value="users" className="space-y-4 pt-4">
-          {/* Search & Filter Toolbar */}
-          <div className="p-3.5 rounded-2xl bg-card border border-border shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
-            <div className="relative flex-1">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder={
-                  isBangla
-                    ? 'নাম, ইমেইল, ফোন বা আইডি দিয়ে ব্যবহারকারী খুঁজুন...'
-                    : 'Search users by name, email, phone, or employee ID...'
-                }
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 h-10 rounded-xl text-xs bg-background border-border"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
-
-            {/* Filter Dropdowns */}
-            <div className="flex flex-wrap items-center gap-2">
-              {/* Branch Filter */}
-              <select
-                value={branchFilter}
-                onChange={(e) => setBranchFilter(e.target.value)}
-                className="h-10 px-3 rounded-xl border border-border bg-background text-xs font-medium text-foreground cursor-pointer focus:outline-none"
-              >
-                <option value="all">{isBangla ? 'সকল শাখা (All Branches)' : 'All Branches'}</option>
-                {HRM_BRANCHES.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.name}
-                  </option>
-                ))}
-              </select>
-
-              {/* Role Filter */}
-              <select
-                value={roleFilter}
-                onChange={(e) => setRoleFilter(e.target.value)}
-                className="h-10 px-3 rounded-xl border border-border bg-background text-xs font-medium text-foreground cursor-pointer focus:outline-none"
-              >
-                <option value="all">{isBangla ? 'সকল ভূমিকা (All Roles)' : 'All Roles'}</option>
-                {baseRoles.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {isBangla ? r.nameBn : r.name}
-                  </option>
-                ))}
-              </select>
-
-              {/* Access Level Filter */}
-              <select
-                value={accessLevelFilter}
-                onChange={(e) => setAccessLevelFilter(e.target.value)}
-                className="h-10 px-3 rounded-xl border border-border bg-background text-xs font-medium text-foreground cursor-pointer focus:outline-none"
-              >
-                <option value="all">{isBangla ? 'সকল অ্যাক্সেস লেভেল' : 'All Access Levels'}</option>
-                <option value="full_system">{isBangla ? 'পূর্ণ অ্যাক্সেস (Full)' : 'Full System Access'}</option>
-                <option value="branch_restricted">{isBangla ? 'শাখা সীমাবদ্ধ (Branch Restricted)' : 'Branch Restricted'}</option>
-                <option value="custom_access">{isBangla ? 'কাস্টম অ্যাক্সেস (Custom)' : 'Custom Access'}</option>
-                <option value="restricted">{isBangla ? 'সীমিত (Restricted)' : 'Restricted'}</option>
-              </select>
-
-              {/* Status Filter */}
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="h-10 px-3 rounded-xl border border-border bg-background text-xs font-medium text-foreground cursor-pointer focus:outline-none"
-              >
-                <option value="all">{isBangla ? 'সকল স্ট্যাটাস' : 'All Status'}</option>
-                <option value="active">{isBangla ? 'সক্রিয় (Active)' : 'Active'}</option>
-                <option value="inactive">{isBangla ? 'নিষ্ক্রিয় (Inactive)' : 'Inactive'}</option>
-              </select>
-
-              {(searchQuery || branchFilter !== 'all' || roleFilter !== 'all' || accessLevelFilter !== 'all' || statusFilter !== 'all') && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setSearchQuery('');
-                    setBranchFilter('all');
-                    setRoleFilter('all');
-                    setAccessLevelFilter('all');
-                    setStatusFilter('all');
-                  }}
-                  className="text-xs text-muted-foreground hover:text-foreground h-10 px-2.5 rounded-xl cursor-pointer"
-                >
-                  <RotateCcw className="w-3.5 h-3.5 mr-1" />
-                  {isBangla ? 'রিসেট' : 'Reset'}
-                </Button>
-              )}
-            </div>
-          </div>
-
-          {/* User Table */}
-          <div className="rounded-2xl bg-card border border-border shadow-xs overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className="bg-muted/40 border-b border-border text-muted-foreground font-bold tracking-wider uppercase text-[10px]">
-                    <th className="py-3.5 px-4">{isBangla ? 'ব্যবহারকারী / কর্মচারী' : 'User / Employee'}</th>
-                    <th className="py-3.5 px-4">{isBangla ? 'ভূমিকা (Role)' : 'Role'}</th>
-                    <th className="py-3.5 px-4">{isBangla ? 'শাখা প্রবেশাধিকার (Branch Scope)' : 'Branch Access'}</th>
-                    <th className="py-3.5 px-4">{isBangla ? 'মডিউল ও পারমিশন' : 'Modules & Permissions'}</th>
-                    <th className="py-3.5 px-4">{isBangla ? 'অ্যাক্সেস লেভেল' : 'Access Level'}</th>
-                    <th className="py-3.5 px-4">{isBangla ? 'স্ট্যাটাস' : 'Status'}</th>
-                    <th className="py-3.5 px-4 text-right">{isBangla ? 'অ্যাকশন' : 'Actions'}</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/60">
-                  {filteredUsers.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="py-12 text-center text-muted-foreground">
-                        <Users className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                        <p className="font-semibold text-sm">{isBangla ? 'কোনো ব্যবহারকারী পাওয়া যায়নি' : 'No users found matching filter criteria'}</p>
-                        <p className="text-xs mt-1">{isBangla ? 'অনুগ্রহ করে ফিল্টার পরিবর্তন করুন।' : 'Try resetting your search query or filters.'}</p>
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredUsers.map((user) => {
-                      const effectivePerms = computeEffectivePermissions(user, baseRoles);
-                      const baseRoleObj = baseRoles.find((r) => r.id === user.baseRoleId);
-
-                      // Calculate accessible modules count
-                      const accessibleModulesCount = ERP_MODULES.filter((m) =>
-                        m.permissions.some((p) => effectivePerms.has(p.id))
-                      ).length;
-
-                      const isFull = user.isFullSystemAccess || user.isOwner;
-                      const hasOverrides = user.customGrantedPermissions.length > 0 || user.customRevokedPermissions.length > 0;
-
-                      return (
-                        <tr key={user.id} className="hover:bg-muted/30 transition-colors group">
-                          {/* User Name & Profile */}
-                          <td className="py-3.5 px-4">
-                            <div className="flex items-center gap-3">
-                              <Avatar className="w-9 h-9 border border-border shadow-xs">
-                                <AvatarFallback className="bg-primary/10 text-primary font-extrabold text-xs">
-                                  {user.name.slice(0, 2).toUpperCase()}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div>
-                                <div className="flex items-center gap-1.5">
-                                  <span className="font-bold text-foreground text-xs hover:text-primary transition-colors">
-                                    {isBangla ? user.nameBn : user.name}
-                                  </span>
-                                  {user.isOwner && (
-                                    <Badge className="bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20 text-[9px] px-1.5 py-0">
-                                      Owner
-                                    </Badge>
-                                  )}
-                                </div>
-                                <div className="text-[11px] text-muted-foreground flex items-center gap-1.5 mt-0.5">
-                                  <span className="font-mono">{user.employeeId}</span>
-                                  <span>•</span>
-                                  <span>{user.department}</span>
-                                  <span>•</span>
-                                  <span className="truncate max-w-[120px]">{user.email}</span>
-                                </div>
-                              </div>
-                            </div>
-                          </td>
-
-                          {/* Base Role */}
-                          <td className="py-3.5 px-4">
-                            <div className="flex items-center gap-1.5">
-                              <span
-                                className="w-2 h-2 rounded-full inline-block shrink-0"
-                                style={{ backgroundColor: baseRoleObj?.color || '#3b82f6' }}
-                              />
-                              <span className="font-semibold text-foreground">
-                                {isBangla ? baseRoleObj?.nameBn : baseRoleObj?.name || 'Custom'}
-                              </span>
-                            </div>
-                            {baseRoleObj?.isSystemProtected && (
-                              <span className="text-[10px] text-muted-foreground block mt-0.5">
-                                {isBangla ? 'সিস্টেম রোল' : 'System Role'}
-                              </span>
-                            )}
-                          </td>
-
-                          {/* Branch Access Scope */}
-                          <td className="py-3.5 px-4">
-                            {user.branchScopeMode === 'all' || user.isFullSystemAccess ? (
-                              <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 text-[10px] font-semibold">
-                                <Globe className="w-3 h-3 mr-1" />
-                                {isBangla ? 'সকল শাখা (All Branches)' : 'All Branches (5)'}
-                              </Badge>
-                            ) : (
-                              <div className="flex flex-col gap-1">
-                                <div className="flex items-center gap-1 text-[11px] font-semibold text-foreground">
-                                  <Building2 className="w-3 h-3 text-muted-foreground" />
-                                  <span>
-                                    {HRM_BRANCHES.find((b) => b.id === user.allowedBranchIds[0])?.name || 'Assigned Branch'}
-                                  </span>
-                                </div>
-                                {user.allowedBranchIds.length > 1 && (
-                                  <span className="text-[10px] text-muted-foreground">
-                                    +{user.allowedBranchIds.length - 1} {isBangla ? 'অন্যান্য শাখা' : 'more branch(es)'}
-                                  </span>
-                                )}
-                              </div>
-                            )}
-                          </td>
-
-                          {/* Modules & Granular Permissions */}
-                          <td className="py-3.5 px-4">
-                            <div className="flex flex-col gap-0.5">
-                              <span className="font-semibold text-foreground">
-                                {isFull ? (
-                                  <span className="text-purple-600 dark:text-purple-400 font-bold">
-                                    {isBangla ? 'সকল ১০টি মডিউল' : 'All 10 Modules (Unrestricted)'}
-                                  </span>
-                                ) : (
-                                  <span>
-                                    {accessibleModulesCount} of {ERP_MODULES.length} {isBangla ? 'মডিউল' : 'Modules'}
-                                  </span>
-                                )}
-                              </span>
-                              <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                                <span>{effectivePerms.size} {isBangla ? 'অনুমতি' : 'Permissions'}</span>
-                                {hasOverrides && (
-                                  <Badge className="bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20 text-[9px] px-1 py-0 font-medium">
-                                    {isBangla ? 'কাস্টম ওভাররাইড' : 'Overrides'}
-                                  </Badge>
-                                )}
-                              </div>
-                            </div>
-                          </td>
-
-                          {/* Access Level Badge */}
-                          <td className="py-3.5 px-4">
-                            {isFull ? (
-                              <Badge className="bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20 font-bold text-[10px]">
-                                <Crown className="w-3 h-3 mr-1" />
-                                {isBangla ? 'পূর্ণ সিস্টেম' : 'Full System Access'}
-                              </Badge>
-                            ) : user.accessLevel === 'branch_restricted' ? (
-                              <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 text-[10px] font-semibold">
-                                <Building2 className="w-3 h-3 mr-1" />
-                                {isBangla ? 'শাখা সীমাবদ্ধ' : 'Branch Restricted'}
-                              </Badge>
-                            ) : user.accessLevel === 'custom_access' ? (
-                              <Badge variant="outline" className="bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20 text-[10px] font-semibold">
-                                <Sliders className="w-3 h-3 mr-1" />
-                                {isBangla ? 'কাস্টম অ্যাক্সেস' : 'Custom Access'}
-                              </Badge>
-                            ) : (
-                              <Badge variant="secondary" className="text-[10px]">
-                                {isBangla ? 'সীমিত' : 'Restricted'}
-                              </Badge>
-                            )}
-                          </td>
-
-                          {/* Status */}
-                          <td className="py-3.5 px-4">
-                            <span
-                              className={cn(
-                                'inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold',
-                                user.status === 'active'
-                                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                                  : 'bg-muted text-muted-foreground'
-                              )}
-                            >
-                              <span className="w-1.5 h-1.5 rounded-full bg-current mr-1.5" />
-                              {user.status === 'active' ? (isBangla ? 'সক্রিয়' : 'Active') : (isBangla ? 'নিষ্ক্রিয়' : 'Inactive')}
-                            </span>
-                          </td>
-
-                          {/* Actions */}
-                          <td className="py-3.5 px-4 text-right">
-                            <div className="flex items-center justify-end gap-1.5">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => {
-                                  setPreviewingUser(user);
-                                  setIsQuickPreviewDrawerOpen(true);
-                                }}
-                                className="h-8 w-8 p-0 rounded-lg text-muted-foreground hover:text-foreground cursor-pointer"
-                                title={isBangla ? 'প্রভাব ও সারাংশ দেখুন' : 'Quick Preview Effective Access'}
-                              >
-                                <Eye className="w-3.5 h-3.5" />
-                              </Button>
-
-                              <Button
-                                size="sm"
-                                onClick={() => handleOpenManageAccess(user)}
-                                className="h-8 rounded-lg bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground font-bold text-xs px-2.5 cursor-pointer shadow-none"
-                              >
-                                <KeyRound className="w-3.5 h-3.5 mr-1" />
-                                {isBangla ? 'অ্যাক্সেস নিয়ন্ত্রণ' : 'Manage Access'}
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </TabsContent>
-
-        {/* ─── TAB 2: ROLES & TEMPLATES BLUEPRINTS ──────────────────────────── */}
-        <TabsContent value="roles" className="space-y-4 pt-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-base font-bold text-foreground">{isBangla ? 'ভূমিকা টেমপ্লেট ও উত্তরাধিকার' : 'Standard Role Templates'}</h2>
-              <p className="text-xs text-muted-foreground">
-                {isBangla
-                  ? 'ব্যবহারকারীরা এই ভূমিকাগুলো থেকে প্রাথমিক অনুমতি গ্রহণ করে এবং পরবর্তীতে তাদের ব্যক্তিগত ওভাররাইড দেওয়া যায়।'
-                  : 'Employees inherit baseline permissions from these roles. Custom overrides can then be layered on top.'}
-              </p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {baseRoles.map((role) => {
-              const assignedUsers = users.filter((u) => u.baseRoleId === role.id);
-              const modulesCovered = ERP_MODULES.filter((m) =>
-                m.permissions.some((p) => role.permissionIds.includes(p.id))
-              ).length;
-
-              return (
-                <div key={role.id} className="p-4 rounded-2xl bg-card border border-border shadow-xs flex flex-col justify-between">
+      {/* ─── ROLE CONFIGURATION & PERMISSION MODAL ───────────────────────── */}
+      <Dialog open={isRoleModalOpen} onOpenChange={setIsRoleModalOpen}>
+        <DialogContent className="max-w-4xl w-[94vw] max-h-[90vh] flex flex-col p-0 gap-0 rounded-2xl bg-card border-border overflow-hidden">
+          {editingRole && (
+            <>
+              {/* Header */}
+              <div className="p-4 sm:p-5 border-b border-border bg-muted/20 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <span className="w-4 h-4 rounded-full" style={{ backgroundColor: editingRole.color }} />
                   <div>
-                    <div className="flex items-center justify-between mb-2.5">
-                      <div className="flex items-center gap-2">
-                        <span className="w-3 h-3 rounded-full" style={{ backgroundColor: role.color }} />
-                        <h3 className="font-bold text-sm text-foreground">{isBangla ? role.nameBn : role.name}</h3>
-                      </div>
-                      {role.isSystemProtected ? (
-                        <Badge variant="outline" className="text-[10px] bg-muted/50 border-border text-muted-foreground">
-                          {isBangla ? 'সুরক্ষিত' : 'System'}
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/20">
-                          {isBangla ? 'কাস্টম' : 'Custom'}
-                        </Badge>
-                      )}
-                    </div>
-
-                    <p className="text-xs text-muted-foreground line-clamp-2 mb-3">
-                      {isBangla ? role.descriptionBn : role.description}
+                    <h2 className="text-lg font-extrabold text-foreground">
+                      {editingRole.name ? (isBangla ? editingRole.nameBn || editingRole.name : editingRole.name) : (isBangla ? 'নতুন রোল তৈরি' : 'Create New Role')}
+                    </h2>
+                    <p className="text-xs text-muted-foreground">
+                      {isBangla ? 'মডিউল ও পারমিশন কনফিগার করুন' : 'Configure role details and granular permissions'}
                     </p>
-
-                    <div className="grid grid-cols-2 gap-2 p-2.5 rounded-xl bg-muted/30 border border-border/50 text-[11px] mb-3">
-                      <div>
-                        <span className="text-muted-foreground block">{isBangla ? 'মডিউল কভারেজ' : 'Modules'}:</span>
-                        <span className="font-bold text-foreground">{modulesCovered} / {ERP_MODULES.length}</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground block">{isBangla ? 'অনুমতি সংখ্যা' : 'Permissions'}:</span>
-                        <span className="font-bold text-foreground">{role.permissionIds.length}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between pt-3 border-t border-border/60 text-xs">
-                    <span className="text-muted-foreground flex items-center gap-1">
-                      <Users className="w-3.5 h-3.5" />
-                      <span>{assignedUsers.length} {isBangla ? 'কর্মী নিয়োজিত' : 'staff assigned'}</span>
-                    </span>
-
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => {
-                        setRoleFilter(role.id);
-                        setMainTab('users');
-                      }}
-                      className="h-7 text-xs font-semibold text-primary hover:bg-primary/10 cursor-pointer"
-                    >
-                      {isBangla ? 'কর্মী দেখুন' : 'View Staff'}
-                      <ArrowRight className="w-3 h-3 ml-1" />
-                    </Button>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        </TabsContent>
-
-        {/* ─── TAB 3: AUDIT HISTORY & ACTIVITY LOG ─────────────────────────── */}
-        <TabsContent value="audit" className="space-y-4 pt-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-base font-bold text-foreground">{isBangla ? 'নিরাপত্তা ও অ্যাক্সেস অডিট লগ' : 'Security & Access Control Audit Trail'}</h2>
-              <p className="text-xs text-muted-foreground">
-                {isBangla
-                  ? 'কে কার প্রবেশাধিকার পরিবর্তন করেছেন, কখন এবং কোন অনুমতি যোগ/মুছে ফেলেছেন তার বিস্তারিত হিসেব।'
-                  : 'Chronological timeline of who modified employee access, granted overrides, or changed branch scopes.'}
-              </p>
-            </div>
-          </div>
-
-          <div className="rounded-2xl bg-card border border-border shadow-xs divide-y divide-border/60">
-            {auditLogs.map((log) => (
-              <div key={log.id} className="p-4 flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5">
-                    <Clock className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-bold text-xs text-foreground">{log.performedBy}</span>
-                      <span className="text-xs text-muted-foreground">updated access for</span>
-                      <span className="font-bold text-xs text-primary">{log.targetUserName}</span>
-                      <Badge variant="outline" className="text-[10px] py-0">{log.targetUserRole}</Badge>
-                    </div>
-
-                    <p className="text-xs text-muted-foreground mt-1">{log.notes}</p>
-
-                    {/* Added & Removed tags */}
-                    <div className="flex flex-wrap items-center gap-2 mt-2">
-                      {log.addedPermissions.map((p, idx) => (
-                        <span key={idx} className="inline-flex items-center text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-md">
-                          + {p}
-                        </span>
-                      ))}
-                      {log.removedPermissions.map((p, idx) => (
-                        <span key={idx} className="inline-flex items-center text-[10px] font-semibold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 px-2 py-0.5 rounded-md">
-                          - {p}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="text-[11px] font-mono text-muted-foreground shrink-0 sm:text-right">
-                  {log.timestamp}
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsRoleModalOpen(false)}
+                    className="rounded-xl border-border text-xs font-semibold h-9 hover:bg-muted cursor-pointer"
+                  >
+                    {isBangla ? 'বাতিল' : 'Cancel'}
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={handleSaveRole}
+                    className="rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-bold h-9 shadow-sm cursor-pointer"
+                  >
+                    <Save className="w-3.5 h-3.5 mr-1" />
+                    {isBangla ? 'সংরক্ষণ করুন' : 'Save Role'}
+                  </Button>
                 </div>
               </div>
-            ))}
+
+              {/* Body */}
+              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
+                {/* Role Details Form */}
+                <div className="p-4 rounded-2xl bg-muted/20 border border-border/80 space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs font-semibold text-foreground mb-1 block">
+                        {isBangla ? 'রোলের নাম (English)' : 'Role Name (English)'}
+                      </Label>
+                      <Input
+                        value={editingRole.name}
+                        onChange={(e) => setEditingRole({ ...editingRole, name: e.target.value })}
+                        placeholder="e.g. Area Sales Officer"
+                        className="h-9 text-xs rounded-xl bg-background"
+                        disabled={editingRole.isSystemProtected}
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs font-semibold text-foreground mb-1 block">
+                        {isBangla ? 'রোলের নাম (বাংলা)' : 'Role Name (Bengali)'}
+                      </Label>
+                      <Input
+                        value={editingRole.nameBn}
+                        onChange={(e) => setEditingRole({ ...editingRole, nameBn: e.target.value })}
+                        placeholder="যেমন: এরিয়া সেলস অফিসার"
+                        className="h-9 text-xs rounded-xl bg-background"
+                        disabled={editingRole.isSystemProtected}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-xs font-semibold text-foreground mb-1 block">
+                      {isBangla ? 'বিবরণ' : 'Description'}
+                    </Label>
+                    <Input
+                      value={editingRole.description}
+                      onChange={(e) => setEditingRole({ ...editingRole, description: e.target.value })}
+                      placeholder="Brief summary of duties and responsibilities"
+                      className="h-9 text-xs rounded-xl bg-background"
+                    />
+                  </div>
+                </div>
+
+                {/* Modules & Permissions Matrix */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                      <Shield className="w-4 h-4 text-primary" />
+                      <span>{isBangla ? 'মডিউল ভিত্তিক অনুমতি' : 'Module Permissions'}</span>
+                    </h3>
+                    <span className="text-xs text-muted-foreground font-mono">
+                      {editingRolePermissions.length} / {ALL_PERMISSION_IDS.length} {isBangla ? 'অনুমতি সক্রিয়' : 'enabled'}
+                    </span>
+                  </div>
+
+                  <div className="space-y-3">
+                    {ERP_MODULES.map((module) => {
+                      const modPermIds = module.permissions.map((p) => p.id);
+                      const enabledCount = modPermIds.filter((id) => editingRolePermissions.includes(id)).length;
+                      const allEnabled = enabledCount === modPermIds.length;
+
+                      return (
+                        <div key={module.id} className="rounded-xl border border-border bg-card overflow-hidden">
+                          <div className="p-3 bg-muted/30 flex items-center justify-between">
+                            <div className="flex items-center gap-2.5">
+                              <span className="font-bold text-xs text-foreground">{isBangla ? module.nameBn : module.name}</span>
+                              <span className="text-[10px] text-muted-foreground">({enabledCount} / {modPermIds.length})</span>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleToggleAllModulePermissions(module, !allEnabled)}
+                              className="h-7 text-[11px] font-semibold text-primary hover:bg-primary/10 cursor-pointer"
+                            >
+                              {allEnabled ? (isBangla ? 'সব বাতিল' : 'Deselect All') : (isBangla ? 'সব নির্বাচন' : 'Select All')}
+                            </Button>
+                          </div>
+                          <div className="p-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                            {module.permissions.map((perm) => {
+                              const isChecked = editingRolePermissions.includes(perm.id);
+                              return (
+                                <label
+                                  key={perm.id}
+                                  className={cn(
+                                    'flex items-start gap-2 p-2 rounded-lg border text-xs cursor-pointer transition-colors',
+                                    isChecked
+                                      ? 'bg-primary/5 border-primary/30 text-foreground'
+                                      : 'border-border/60 text-muted-foreground hover:bg-muted/30'
+                                  )}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={isChecked}
+                                    onChange={() => handleToggleRolePermission(perm.id)}
+                                    className="mt-0.5 rounded border-border text-primary focus:ring-primary h-3.5 w-3.5 cursor-pointer"
+                                  />
+                                  <div>
+                                    <span className="font-semibold block">{isBangla ? perm.nameBn : perm.name}</span>
+                                    <span className="text-[10px] opacity-75 line-clamp-1">{perm.description}</span>
+                                  </div>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── VIEW ASSIGNED STAFF MODAL ───────────────────────────────────── */}
+      <Dialog open={isStaffModalOpen} onOpenChange={setIsStaffModalOpen}>
+        <DialogContent className="max-w-lg rounded-2xl bg-card border-border p-6">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-foreground font-bold text-base">
+              <Users className="w-5 h-5 text-primary" />
+              <span>
+                {viewStaffRole ? (isBangla ? `${viewStaffRole.nameBn} - নিয়োজিত কর্মী` : `Staff Assigned to ${viewStaffRole.name}`) : 'Assigned Staff'}
+              </span>
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              {isBangla
+                ? 'এই ভূমিকায় নিযুক্ত সকল কর্মচারীদের তালিকা।'
+                : 'All employees currently assigned this baseline role.'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2.5 max-h-[60vh] overflow-y-auto pt-2">
+            {viewStaffRole &&
+              (() => {
+                const assigned = users.filter((u) => u.baseRoleId === viewStaffRole.id);
+                if (assigned.length === 0) {
+                  return (
+                    <div className="py-8 text-center text-muted-foreground text-xs">
+                      <UserX className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                      <p>{isBangla ? 'এই রোলে কোনো কর্মী নিযুক্ত নেই।' : 'No staff members are assigned to this role.'}</p>
+                    </div>
+                  );
+                }
+                return assigned.map((u) => (
+                  <div key={u.id} className="p-3 rounded-xl border border-border bg-muted/20 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5">
+                      <Avatar className="w-8 h-8">
+                        <AvatarFallback className="bg-primary/10 text-primary font-bold text-xs">
+                          {u.name.slice(0, 2).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <div className="font-bold text-xs text-foreground">{isBangla ? u.nameBn : u.name}</div>
+                        <div className="text-[10px] text-muted-foreground flex items-center gap-1.5">
+                          <span>{u.designation}</span>
+                          <span>•</span>
+                          <span>{u.department}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-600 bg-emerald-500/10">
+                      {u.status === 'active' ? (isBangla ? 'সক্রিয়' : 'Active') : (isBangla ? 'নিষ্ক্রিয়' : 'Inactive')}
+                    </Badge>
+                  </div>
+                ));
+              })()}
           </div>
-        </TabsContent>
-      </Tabs>
+        </DialogContent>
+      </Dialog>
 
       {/* ─── DEDICATED FULL-WORKSPACE MANAGE USER ACCESS MODAL ─────────────── */}
       <Dialog open={isManageAccessOpen} onOpenChange={setIsManageAccessOpen}>
