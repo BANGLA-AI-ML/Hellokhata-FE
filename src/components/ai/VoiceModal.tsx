@@ -8,7 +8,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { useAppTranslation } from '@/hooks/useAppTranslation';
 import { Button } from '@/components/ui/premium';
-import { formatAiProposalText, submitAiTextRequest } from '@/services/ai.services';
+import {
+  formatAiProposalText,
+  submitAiTextRequest,
+  transcribeAiAudioRequest,
+} from '@/services/ai.services';
 import { AI_UI_ENABLED } from '@/lib/ai/config';
 import { 
   Mic, 
@@ -43,156 +47,210 @@ interface VoiceResult {
   }>;
 }
 
+function stopMediaStream(stream: MediaStream | null) {
+  stream?.getTracks().forEach((track) => track.stop());
+}
+
 export function VoiceModal({ isOpen, onClose }: VoiceModalProps) {
   const { isBangla } = useAppTranslation();
   const [isListening, setIsListening] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [transcript, setTranscript] = useState('');
-  const [interimTranscript, setInterimTranscript] = useState('');
   const [result, setResult] = useState<VoiceResult | null>(null);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
-  const fullTranscriptRef = useRef('');
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const captureActiveRef = useRef(false);
+  const captureSessionRef = useRef(0);
 
-  // Update ref whenever transcript changes
-  useEffect(() => {
-    fullTranscriptRef.current = transcript + interimTranscript;
-  }, [transcript, interimTranscript]);
-
-  // Initialize speech recognition
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (SpeechRecognition) {
-        recognitionRef.current = new SpeechRecognition();
-        recognitionRef.current.continuous = true;
-        recognitionRef.current.interimResults = true;
-        recognitionRef.current.lang = isBangla ? 'bn-BD' : 'en-US';
-        recognitionRef.current.maxAlternatives = 1;
-
-        recognitionRef.current.onresult = (event) => {
-          let interim = '';
-          let final = '';
-
-          for (let i = event.resultIndex; i < event.results.length; i++) {
-            const transcriptText = event.results[i][0].transcript;
-            if (event.results[i].isFinal) {
-              final += transcriptText;
-            } else {
-              interim += transcriptText;
-            }
-          }
-
-          if (final) {
-            setTranscript(prev => prev + final);
-          }
-          setInterimTranscript(interim);
-        };
-
-        recognitionRef.current.onerror = (event) => {
-          // "no-speech" and "aborted" are common and not real errors
-          if (event.error === 'no-speech' || event.error === 'aborted') {
-            console.log('Speech recognition ended:', event.error);
-            setIsListening(false);
-            return;
-          }
-          console.error('Speech recognition error:', event.error);
-          setError(event.error);
-          setIsListening(false);
-        };
-
-        recognitionRef.current.onend = () => {
-          // Recognition ended - don't auto-restart
-        };
+  const cancelRecording = useCallback(() => {
+    captureSessionRef.current += 1;
+    captureActiveRef.current = false;
+    const recorder = mediaRecorderRef.current;
+    if (recorder && recorder.state !== 'inactive') {
+      try {
+        recorder.stop();
+      } catch {
+        // The recorder may already have stopped while the modal was closing.
       }
     }
+    stopMediaStream(mediaStreamRef.current);
+    mediaRecorderRef.current = null;
+    mediaStreamRef.current = null;
+    audioChunksRef.current = [];
+  }, []);
 
-    return () => {
-      recognitionRef.current?.stop();
-    };
-  }, [isBangla]);
+  useEffect(() => {
+    if (!isOpen) cancelRecording();
+    return cancelRecording;
+  }, [isOpen, cancelRecording]);
 
-  const startListening = useCallback(() => {
+  const startListening = useCallback(async () => {
+    if (
+      !navigator.mediaDevices?.getUserMedia ||
+      typeof MediaRecorder === 'undefined'
+    ) {
+      setError('unsupported');
+      return;
+    }
+
     setError(null);
     setTranscript('');
-    setInterimTranscript('');
     setResult(null);
-    fullTranscriptRef.current = '';
+    const sessionId = captureSessionRef.current + 1;
+    captureSessionRef.current = sessionId;
+    captureActiveRef.current = true;
     setIsListening(true);
-    
+
     try {
-      recognitionRef.current?.start();
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (captureSessionRef.current !== sessionId || !captureActiveRef.current) {
+        stopMediaStream(stream);
+        return;
+      }
+
+      const mimeOptions = [
+        'audio/webm;codecs=opus',
+        'audio/webm',
+        'audio/ogg;codecs=opus',
+        'audio/ogg',
+      ];
+      const mime = mimeOptions.find((option) =>
+        MediaRecorder.isTypeSupported(option),
+      );
+
+      if (!mime) {
+        stopMediaStream(stream);
+        throw new Error('unsupported');
+      }
+
+      mediaStreamRef.current = stream;
+      const recorder = new MediaRecorder(stream, { mimeType: mime });
+      mediaRecorderRef.current = recorder;
+      audioChunksRef.current = [];
+      recorder.ondataavailable = (event) => {
+        if (
+          captureSessionRef.current === sessionId &&
+          event.data.size > 0
+        ) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+      recorder.onerror = () => {
+        if (captureSessionRef.current !== sessionId) return;
+        captureActiveRef.current = false;
+        setIsListening(false);
+        setError('recording-failed');
+        stopMediaStream(stream);
+        mediaRecorderRef.current = null;
+        mediaStreamRef.current = null;
+      };
+      recorder.onstop = () => {
+        if (captureSessionRef.current === sessionId) {
+          stopMediaStream(stream);
+          mediaStreamRef.current = null;
+        }
+      };
+      recorder.start(250);
     } catch (err) {
-      console.error('Failed to start recognition:', err);
-      setError('not-allowed');
+      if (captureSessionRef.current !== sessionId) return;
+      captureActiveRef.current = false;
       setIsListening(false);
+      stopMediaStream(mediaStreamRef.current);
+      mediaStreamRef.current = null;
+      mediaRecorderRef.current = null;
+      setError(
+        err instanceof Error && err.message === 'unsupported'
+          ? 'unsupported'
+          : err instanceof DOMException &&
+              ['NotAllowedError', 'SecurityError'].includes(err.name)
+            ? 'not-allowed'
+            : 'recording-failed',
+      );
     }
   }, []);
 
   const stopListening = useCallback(async () => {
-    setIsListening(false);
-    
-    try {
-      recognitionRef.current?.stop();
-    } catch (err) {
-      console.error('Error stopping recognition:', err);
-    }
-    
-    // Get the full transcript including interim results
-    const finalTranscript = (transcript + ' ' + interimTranscript).trim();
-    
-    // Browser speech recognition is non-authoritative capture only. The final
-    // text always goes through the authenticated ERP backend AI gateway.
-    if (finalTranscript) {
-      setIsProcessing(true);
-      
-      try {
-        const language = isBangla ? 'bn-BD' : 'en-US';
-        const proposal = await submitAiTextRequest(finalTranscript, language);
+    if (!captureActiveRef.current) return;
 
-        if (proposal) {
-          const answer = formatAiProposalText(proposal, language);
-          setResult({
-            id: Date.now().toString(),
-            query: finalTranscript,
-            answer,
-            answerBn: answer,
-            actions: [],
-          });
-        } else {
-          // API returned error
-          console.error('AI proposal was unavailable:', proposal);
-          setResult({
-            id: Date.now().toString(),
-            query: finalTranscript,
-            answer: isBangla 
-              ? 'দুঃখিত, আমি আপনার প্রশ্ন বুঝতে পারিনি। অনুগ্রহ করে আবার চেষ্টা করুন।'
-              : 'Sorry, I could not understand your question. Please try again.',
-            answerBn: 'দুঃখিত, আমি আপনার প্রশ্ন বুঝতে পারিনি। অনুগ্রহ করে আবার চেষ্টা করুন।',
-            actions: [],
-          });
-        }
-      } catch (error) {
-        console.error('Voice AI error:', error);
-        setResult({
-          id: Date.now().toString(),
-          query: finalTranscript,
-          answer: isBangla 
-            ? 'একটি ত্রুটি হয়েছে। অনুগ্রহ করে পরে আবার চেষ্টা করুন।'
-            : 'An error occurred. Please try again later.',
-          answerBn: 'একটি ত্রুটি হয়েছে। অনুগ্রহ করে পরে আবার চেষ্টা করুন।',
-          actions: [],
-        });
-      }
-      
-      setIsProcessing(false);
-    } else {
-      // No transcript captured
+    const sessionId = captureSessionRef.current;
+    const recorder = mediaRecorderRef.current;
+    const stream = mediaStreamRef.current;
+    if (!recorder || recorder.state === 'inactive') {
+      captureActiveRef.current = false;
+      setIsListening(false);
+      stopMediaStream(stream);
       setError('no-speech');
+      return;
     }
-  }, [transcript, interimTranscript, isBangla]);
+
+    setIsListening(false);
+    captureActiveRef.current = false;
+    const uploadMimeType = recorder.mimeType.includes('ogg') ? 'audio/ogg' : 'audio/webm';
+
+    const audio = await new Promise<Blob>((resolve) => {
+      recorder.onstop = () => {
+        resolve(new Blob(audioChunksRef.current, { type: uploadMimeType }));
+      };
+      try {
+        recorder.stop();
+      } catch {
+        resolve(new Blob(audioChunksRef.current, { type: uploadMimeType }));
+      }
+      stopMediaStream(stream);
+    });
+
+    if (captureSessionRef.current !== sessionId) return;
+    mediaRecorderRef.current = null;
+    mediaStreamRef.current = null;
+    audioChunksRef.current = [];
+
+    if (audio.size === 0) {
+      setError('no-speech');
+      return;
+    }
+
+    setIsProcessing(true);
+    let transcribed = false;
+    try {
+      const language = isBangla ? 'bn-BD' : 'en-US';
+      const finalTranscript = await transcribeAiAudioRequest(audio, language);
+      if (captureSessionRef.current !== sessionId) return;
+      setTranscript(finalTranscript);
+      transcribed = true;
+
+      const proposal = await submitAiTextRequest(finalTranscript, language);
+      if (captureSessionRef.current !== sessionId) return;
+
+      const answer = formatAiProposalText(proposal, language);
+      setResult({
+        id: Date.now().toString(),
+        query: finalTranscript,
+        answer,
+        answerBn: answer,
+        actions: [],
+      });
+    } catch {
+      if (captureSessionRef.current === sessionId) {
+        setError(transcribed ? 'processing-failed' : 'transcription-failed');
+      }
+    } finally {
+      if (captureSessionRef.current === sessionId) setIsProcessing(false);
+    }
+  }, [isBangla]);
+
+  const handleClose = useCallback(() => {
+    cancelRecording();
+    setIsListening(false);
+    setIsProcessing(false);
+    setTranscript('');
+    setResult(null);
+    setError(null);
+    onClose();
+  }, [cancelRecording, onClose]);
 
   const handleCopy = () => {
     if (result) {
@@ -204,10 +262,8 @@ export function VoiceModal({ isOpen, onClose }: VoiceModalProps) {
 
   const handleReset = () => {
     setTranscript('');
-    setInterimTranscript('');
     setResult(null);
     setError(null);
-    fullTranscriptRef.current = '';
   };
 
   if (!AI_UI_ENABLED || !isOpen) return null;
@@ -219,7 +275,7 @@ export function VoiceModal({ isOpen, onClose }: VoiceModalProps) {
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         className="fixed inset-0 z-50 flex items-center justify-center bg-background/90 backdrop-blur-sm"
-        onClick={onClose}
+        onClick={handleClose}
       >
         <motion.div
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -239,7 +295,7 @@ export function VoiceModal({ isOpen, onClose }: VoiceModalProps) {
                 {isBangla ? 'ভয়েস AI' : 'Voice AI'}
               </span>
             </div>
-            <Button variant="ghost" size="icon-sm" onClick={onClose}>
+            <Button variant="ghost" size="icon-sm" onClick={handleClose}>
               <X className="h-4 w-4" />
             </Button>
           </div>
@@ -268,6 +324,7 @@ export function VoiceModal({ isOpen, onClose }: VoiceModalProps) {
                 {/* Mic button */}
                 <motion.button
                   onClick={isListening ? stopListening : startListening}
+                  disabled={isProcessing}
                   className={cn(
                     'relative h-20 w-20 rounded-full flex items-center justify-center transition-colors',
                     isListening 
@@ -309,23 +366,20 @@ export function VoiceModal({ isOpen, onClose }: VoiceModalProps) {
               {/* Status text */}
               <p className="text-sm text-muted-foreground mt-3">
                 {isListening 
-                  ? (isBangla ? 'শুনছি... থামতে আবার ক্লিক করুন' : 'Listening... Click again to stop')
+                  ? (isBangla ? 'রেকর্ড হচ্ছে... ট্রান্সক্রাইব করতে আবার ক্লিক করুন' : 'Recording... Click again to transcribe')
                   : isProcessing
-                  ? (isBangla ? 'প্রসেসিং...' : 'Processing...')
+                  ? (isBangla ? 'অডিও ট্রান্সক্রাইব ও বিশ্লেষণ হচ্ছে...' : 'Transcribing and processing audio...')
                   : (isBangla
-                    ? 'ব্রাউজার ভয়েস ক্যাপচার মাত্র — পাঠানোর আগে ট্রান্সক্রিপ্ট যাচাই করুন'
-                    : 'Browser speech capture only — verify the transcript before sending')
+                    ? 'কথা বলতে মাইক্রোফোন চাপুন, তারপর ট্রান্সক্রাইব করতে আবার চাপুন'
+                    : 'Tap the microphone to record, then tap again to transcribe')
                 }
               </p>
             </div>
 
             {/* Transcript */}
-            {(transcript || interimTranscript) && !result && (
+            {transcript && !result && (
               <div className="mb-4 p-4 bg-muted/50 rounded-xl border border-border-subtle">
-                <p className="text-sm text-foreground">
-                  {transcript}
-                  <span className="text-muted-foreground">{interimTranscript}</span>
-                </p>
+                <p className="text-sm text-foreground">{transcript}</p>
               </div>
             )}
 
@@ -342,8 +396,14 @@ export function VoiceModal({ isOpen, onClose }: VoiceModalProps) {
                       ? (isBangla ? 'মাইক্রোফোন অনুমতি দিন' : 'Please allow microphone access in your browser settings')
                       : error === 'no-speech'
                       ? (isBangla ? 'কোনো কথা শোনা যায়নি। আবার চেষ্টা করুন।' : 'No speech detected. Please try again.')
-                      : error === 'network'
-                      ? (isBangla ? 'নেটওয়ার্ক সমস্যা। ইন্টারনেট সংযোগ চেক করুন।' : 'Network error. Please check your internet connection.')
+                      : error === 'unsupported'
+                      ? (isBangla ? 'এই ব্রাউজারে অডিও রেকর্ডিং সমর্থিত নয়।' : 'Audio recording is not supported in this browser.')
+                      : error === 'recording-failed'
+                      ? (isBangla ? 'অডিও রেকর্ড করা যায়নি। মাইক্রোফোন অনুমতি পরীক্ষা করুন।' : 'Audio recording failed. Check microphone access and try again.')
+                      : error === 'transcription-failed'
+                      ? (isBangla ? 'অডিও ট্রান্সক্রাইব করা যায়নি। এআই সেবা পরীক্ষা করে আবার চেষ্টা করুন।' : 'Could not transcribe the audio. Check the AI service and try again.')
+                      : error === 'processing-failed'
+                      ? (isBangla ? 'ট্রান্সক্রিপ্ট তৈরি হয়েছে, কিন্তু এআই অনুরোধ সম্পন্ন হয়নি। আবার চেষ্টা করুন।' : 'Audio was transcribed, but the AI request failed. Please try again.')
                       : (isBangla ? 'একটি ত্রুটি হয়েছে। আবার চেষ্টা করুন।' : 'An error occurred. Please try again.')
                     }
                   </p>
@@ -471,14 +531,6 @@ export function VoiceButton({ onClick }: { onClick: () => void }) {
       />
     </motion.button>
   );
-}
-
-// Add type declarations for Web Speech API
-declare global {
-  interface Window {
-    SpeechRecognition: typeof SpeechRecognition;
-    webkitSpeechRecognition: typeof SpeechRecognition;
-  }
 }
 
 export default VoiceModal;

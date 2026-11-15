@@ -25,9 +25,7 @@ function VerifyOtpContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const phone = searchParams.get("phone") || "";
-    const initialOtp = searchParams.get("otp") || "";
 
-    const [demoOTP, setDemoOTP] = useState(initialOtp);
     const [countdown, setCountdown] = useState(60);
     const [otp, setOtp] = useState("");
 
@@ -59,11 +57,14 @@ function VerifyOtpContent() {
             return;
         }
 
+        const registrationId = sessionStorage.getItem("pendingSignupRegistrationId") || undefined;
+
         verifyOTP.mutate(
-            { code: otp },
+            { registrationId, code: otp },
             {
                 onSuccess: (data) => {
                     if (data.success) {
+                        sessionStorage.removeItem("pendingSignupRegistrationId");
                         setSessionFromAuthResponse(data)
                         toast.success(data.message || "OTP verified successfully");
                         router.push("/");
@@ -81,11 +82,11 @@ function VerifyOtpContent() {
 
     const handleResendOTP = () => {
 
-        const obj = { purpose: "signup" };
+        const registrationId = sessionStorage.getItem("pendingSignupRegistrationId") || undefined;
+        const obj = { registrationId, purpose: "signup" };
         resendOTP.mutate(obj, {
             onSuccess: (data) => {
                 if (data.success) {
-                    setDemoOTP(data.data.otp);
                     setCountdown(60);
                     toast.success("OTP has been resent successfully!");
                 } else {
@@ -239,21 +240,6 @@ function VerifyOtpContent() {
                                     />
                                 </div>
                             </div>
-
-                            {demoOTP && (
-                                <p
-                                    className="text-xs md:text-sm text-center whitespace-nowrap shrink-0 animate-pulse"
-                                    style={{ color: "#6B7684" }}
-                                >
-                                    Demo OTP:{" "}
-                                    <span
-                                        className="font-mono font-bold"
-                                        style={{ color: "#0FBF9F" }}
-                                    >
-                                        {demoOTP}
-                                    </span>
-                                </p>
-                            )}
 
                             <Button
                                 type="submit"

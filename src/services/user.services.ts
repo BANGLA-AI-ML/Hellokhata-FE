@@ -11,6 +11,7 @@ export const verifyOTP = async (payload: any) => {
 };
 
 export const resendOTP = async (resendItem: {
+  registrationId?: string;
   purpose: string;
 }) => {
   const res = await client.post("/api/auth/resend-otp", resendItem);
