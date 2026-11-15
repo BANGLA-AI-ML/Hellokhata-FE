@@ -43,6 +43,29 @@ export async function submitAiTextRequest(
   return response.data;
 }
 
+export async function transcribeAiAudioRequest(
+  audio: Blob,
+  language: AiLanguage,
+): Promise<string> {
+  const isOgg = audio.type.includes('ogg');
+  const mimeType = isOgg ? 'audio/ogg' : 'audio/webm';
+  const extension = isOgg ? 'ogg' : 'webm';
+  const formData = new FormData();
+  formData.append('file', new Blob([audio], { type: mimeType }), `voice.${extension}`);
+  formData.append('language', language);
+
+  const response = await api.postForm<{ transcript: string }>(
+    '/ai/speech-to-text',
+    formData,
+  );
+
+  if (!response.data?.transcript?.trim()) {
+    throw new Error('The AI speech-to-text service returned an empty transcript.');
+  }
+
+  return response.data.transcript.trim();
+}
+
 export function formatAiProposalText(
   response: AiProposalResponse,
   language: AiLanguage,
