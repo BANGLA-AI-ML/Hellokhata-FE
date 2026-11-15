@@ -77,9 +77,11 @@ export default function RegisterPage() {
       onSuccess: (data) => {
         if (data.success) {
           toast.success(data.message);
-          router.push(
-            `/verify-otp?otp=${data.data.otp}`
+          sessionStorage.setItem(
+            "pendingSignupRegistrationId",
+            data.data.registrationId,
           );
+          router.push(`/verify-otp?phone=${encodeURIComponent(phone)}`);
         }
       },
     });

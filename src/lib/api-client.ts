@@ -17,6 +17,16 @@ interface RequestOptions extends RequestInit {
   branchId?: string | null;
 }
 
+class ApiClientError extends Error {
+  constructor(
+    readonly apiError: ApiError,
+    readonly status: number,
+  ) {
+    super(apiError.message);
+    this.name = 'ApiClientError';
+  }
+}
+
 // Build URL with query params
 function buildUrl(endpoint: string, params?: Record<string, string | number | boolean | undefined>): string {
   const url = new URL(`${BASE_URL}${endpoint}`, window.location.origin);
@@ -41,9 +51,6 @@ async function apiRequest<T>(
   // Get session data from store
   const sessionState = useSessionStore.getState();
   const token = sessionState.token;
-  const businessId = sessionState.business?.id;
-  const userId = sessionState.user?.id;
-  const userRole = sessionState.user?.role;
   const language = useUiStore.getState().language;
 
   // Get branch context from store
@@ -52,8 +59,10 @@ async function apiRequest<T>(
   const branchId = overrideBranchId !== undefined ? overrideBranchId : branchState.currentBranchId;
 
   // Default headers
+  const isFormData =
+    typeof FormData !== 'undefined' && fetchOptions.body instanceof FormData;
   const headers: HeadersInit = {
-    'Content-Type': 'application/json',
+    ...(!isFormData ? { 'Content-Type': 'application/json' } : {}),
     'Accept-Language': language,
     ...fetchOptions.headers,
   };
@@ -63,21 +72,6 @@ async function apiRequest<T>(
     (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
   }
   
-  // Add business ID for multi-tenant isolation
-  if (businessId) {
-    (headers as Record<string, string>)['x-business-id'] = businessId;
-  }
-  
-  // Add user ID for audit trail
-  if (userId) {
-    (headers as Record<string, string>)['x-user-id'] = userId;
-  }
-
-  // Add user role for access control
-  if (userRole) {
-    (headers as Record<string, string>)['x-user-role'] = userRole;
-  }
-
   // Add branch ID for branch-scoped operations
   // null means "All Branches" mode for reporting
   if (branchId !== undefined) {
@@ -134,6 +128,13 @@ export const api = {
     apiRequest<T>(endpoint, {
       method: 'POST',
       body: body ? JSON.stringify(body) : undefined,
+      branchId,
+    }),
+
+  postForm: <T>(endpoint: string, body: FormData, branchId?: string | null) =>
+    apiRequest<T>(endpoint, {
+      method: 'POST',
+      body,
       branchId,
     }),
 };
